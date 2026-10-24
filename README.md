@@ -14,7 +14,7 @@
 | 구분 | URL |
 |---|---|
 | 프리뷰(샌드박스) | `https://3000-ipl8hqb6bkctnjgmrad3o-5185f4aa.sandbox.novita.ai` |
-| 프로덕션 | *배포 후 기입* |
+| **프로덕션** | **https://9c4c1d85-680d-4771-b332-924c7607cf71.vip.gensparksite.com** |
 
 ---
 
