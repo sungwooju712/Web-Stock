@@ -1,4 +1,5 @@
 import type { FC } from 'hono/jsx'
+import { Analysis } from './analysis'
 
 interface Meta {
   source: string
@@ -10,7 +11,14 @@ interface Meta {
   note: string
 }
 
-export const Page: FC<{ meta: Meta }> = ({ meta }) => {
+interface PricesMeta {
+  collectedAt: string
+  tradingDays: number
+  start: string | null
+  end: string | null
+}
+
+export const Page: FC<{ meta: Meta; prices: PricesMeta }> = ({ meta, prices }) => {
   const collected = new Date(meta.collectedAt)
   const collectedText = isNaN(collected.getTime())
     ? meta.collectedAt
@@ -93,6 +101,16 @@ export const Page: FC<{ meta: Meta }> = ({ meta }) => {
         </header>
 
         <main id="app-main">
+          <nav id="view-tabs" aria-label="화면 전환">
+            <button type="button" class="view-tab active" data-view="screener" aria-selected="true">
+              종목 스크리너
+            </button>
+            <button type="button" class="view-tab" data-view="analysis" aria-selected="false">
+              주요 종목 분석
+            </button>
+          </nav>
+
+          <div id="view-screener" class="view active">
           <section id="stats-strip" aria-label="조건 충족 요약">
             <div class="stat-card">
               <span class="stat-label">조건 충족</span>
@@ -420,6 +438,16 @@ export const Page: FC<{ meta: Meta }> = ({ meta }) => {
               <nav id="pagination" aria-label="페이지 이동"></nav>
             </section>
           </div>
+          </div>
+
+          <div id="view-analysis" class="view" hidden>
+            <Analysis
+              collectedAt={prices.collectedAt}
+              tradingDays={prices.tradingDays}
+              start={prices.start}
+              end={prices.end}
+            />
+          </div>
 
           <footer id="app-footer">
             <p>
@@ -477,7 +505,11 @@ export const Page: FC<{ meta: Meta }> = ({ meta }) => {
 
         <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+        {/* 차트 / 엑셀 라이브러리 (CDN, Worker 번들에 포함하지 않음) */}
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
         <script src="/static/app.js"></script>
+        <script src="/static/analysis.js"></script>
       </body>
     </html>
   )

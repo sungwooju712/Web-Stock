@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import snapshot from './data/snapshot.json'
+import prices from './data/prices.json'
 import {
   filterStocks,
   sortStocks,
@@ -236,9 +237,128 @@ app.get('/api/health', (c) =>
 )
 
 /* ------------------------------------------------------------------ */
+/* 주요 종목 분석 (종가 시계열)                                        */
+/* ------------------------------------------------------------------ */
+
+type PriceMeta = {
+  source: string
+  collectedAt: string
+  start: string | null
+  end: string | null
+  tradingDays: number
+  codes: string[]
+  note: string
+}
+type PriceStock = { code: string; name: string }
+type DailyRow = { date: string; c: Record<string, number | null> }
+type MonthlyRow = { ym: string; c: Record<string, number | null>; r: Record<string, number | null> }
+type AnnualRow = { year: string; c: Record<string, number | null>; r: Record<string, number | null> }
+type PeriodStat = {
+  closeHigh: number | null
+  closeHighDate: string | null
+  closeLow: number | null
+  closeLowDate: string | null
+  high: number | null
+  highDate: string | null
+}
+
+const PRICES = prices as unknown as {
+  meta: PriceMeta
+  stocks: PriceStock[]
+  daily: DailyRow[]
+  monthly: MonthlyRow[]
+  annual: AnnualRow[]
+  period: Record<string, PeriodStat>
+}
+
+/**
+ * 주요 종목 분석 요약 (차트용 경량 데이터)
+ * daily 는 928행이라 기본 응답에서 제외하고 /api/prices/daily 로 분리한다.
+ */
+app.get('/api/prices', (c) => {
+  const { stocks, monthly, annual, period, meta } = PRICES
+
+  // 최신 종가 기준 파생 지표
+  const latest = PRICES.daily[PRICES.daily.length - 1]
+  const rows = stocks.map((s) => {
+    const code = s.code
+    const periodStat = period[code] || null
+    // 2023년 말 종가 (첫 연간 행의 종가)
+    const y2023 = annual.find((a) => a.year === '2023')
+    const y2025 = annual.find((a) => a.year === '2025')
+    const y2026 = annual.find((a) => a.year === '2026')
+    const last = latest?.c[code] ?? null
+    const base2023 = y2023?.c[code] ?? null
+    const base2025 = y2025?.c[code] ?? null
+
+    const ratio = (cur: number | null, base: number | null) =>
+      cur != null && base != null && base !== 0 ? Number((((cur - base) / base) * 100).toFixed(2)) : null
+
+    return {
+      code,
+      name: s.name,
+      last,
+      lastDate: latest?.date ?? null,
+      // 엑셀 한장보고와 동일한 지표 구성
+      vs2023Pct: ratio(last, base2023),
+      vs2025Pct: ratio(last, base2025),
+      y2026Pct: y2026?.r[code] == null ? null : Number((y2026.r[code]! * 100).toFixed(2)),
+      closeHigh: periodStat?.closeHigh ?? null,
+      closeHighDate: periodStat?.closeHighDate ?? null,
+      closeLow: periodStat?.closeLow ?? null,
+      highIntraday: periodStat?.high ?? null,
+      highIntradayDate: periodStat?.highDate ?? null,
+    }
+  })
+
+  return c.json({
+    meta,
+    stocks,
+    summary: rows,
+    monthly,
+    annual,
+  })
+})
+
+/** 일별 종가 시계열 (기간 필터 지원) */
+app.get('/api/prices/daily', (c) => {
+  const sp = new URL(c.req.url).searchParams
+  const from = sp.get('from')
+  const to = sp.get('to')
+  const step = Math.max(1, Math.min(30, Number(sp.get('step') || 1) || 1))
+
+  let rows = PRICES.daily
+  if (from) rows = rows.filter((r) => r.date >= from)
+  if (to) rows = rows.filter((r) => r.date <= to)
+  // step: 차트 렌더링 부담을 줄이기 위한 샘플링
+  if (step > 1) rows = rows.filter((_, i) => i % step === 0 || i === rows.length - 1)
+
+  return c.json({
+    codes: PRICES.meta.codes,
+    stocks: PRICES.stocks,
+    from: rows[0]?.date ?? null,
+    to: rows[rows.length - 1]?.date ?? null,
+    count: rows.length,
+    rows,
+  })
+})
+
+/* ------------------------------------------------------------------ */
 /* 페이지                                                             */
 /* ------------------------------------------------------------------ */
 
-app.get('/', (c) => c.html(<Page meta={DATA.meta} />))
+app.get('/', (c) =>
+  c.html(
+    <Page
+      meta={DATA.meta}
+      prices={{
+        collectedAt: PRICES.meta.collectedAt,
+        tradingDays: PRICES.meta.tradingDays,
+        start: PRICES.meta.start,
+        end: PRICES.meta.end,
+      }}
+    />
+  )
+)
 
 export default app
