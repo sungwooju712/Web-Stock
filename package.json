@@ -1,5 +1,8 @@
 {
   "name": "kospi-screener",
+  "description": "코스피 종목 분석 — 코스피 전 종목 조건검색 + 원하는 종목 종가 분석/보고서/엑셀",
+  "license": "MIT",
+  "author": "최미경 (Choi Mi-kyung)",
   "type": "module",
   "scripts": {
     "dev": "vite",
