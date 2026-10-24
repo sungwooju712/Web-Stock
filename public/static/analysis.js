@@ -1,5 +1,5 @@
 /**
- * 마음대로하는 종목분석 — 분석 뷰 클라이언트
+ * 코스피 종목 분석 — 분석 뷰 클라이언트
  *
  * - 데이터: /api/prices (요약·월별·연간), /api/prices/daily (일별)
  *           /api/prices/stock/:code (추가한 종목의 종가 시계열)
@@ -1174,10 +1174,10 @@
 
     var html = '';
     html += '<!doctype html><html lang="ko"><head><meta charset="utf-8">';
-    html += '<title>마음대로하는 종목분석 보고서</title>';
+    html += '<title>코스피 종목 분석 보고서</title>';
     html += '<style>' + css + '</style></head><body>';
 
-    html += '<h1>마음대로하는 종목분석 보고서</h1>';
+    html += '<h1>코스피 종목 분석 보고서</h1>';
     html +=
       '<p class="sub">기준일: ' +
       esc(meta.end || '') +
@@ -1330,7 +1330,7 @@
     html += '</tbody></table>';
 
     html +=
-      '<div class="foot">마음대로하는 종목분석 · made by 최미경 · ' +
+      '<div class="foot">코스피 종목 분석 · made by 최미경 · ' +
       esc(meta.source) +
       '</div>';
     html += '</body></html>';
@@ -1338,7 +1338,7 @@
     saveBlob(
       html,
       'text/html;charset=utf-8;',
-      '마음대로하는_종목분석_보고서_' + (meta.end || '').replace(/-/g, '') + '.html'
+      '코스피_종목분석_보고서_' + (meta.end || '').replace(/-/g, '') + '.html'
     );
     toast('보고서(HTML)를 내려받았습니다. 브라우저에서 PDF로 인쇄할 수 있습니다.');
   }
@@ -1432,7 +1432,7 @@
 
     /* ── 시트 1: 한장보고 ── */
     var s1 = [];
-    s1.push(['마음대로하는 종목분석 (한눈에 보기)']);
+    s1.push(['코스피 종목 분석 (한눈에 보기)']);
     s1.push([
       '기준일: ' +
         (meta.end || '') +
@@ -1505,7 +1505,7 @@
 
     /* ── 시트 2: 전체보고 ── */
     var s2 = [];
-    s2.push(['마음대로하는 종목분석 전체 보고서']);
+    s2.push(['코스피 종목 분석 전체 보고서']);
     s2.push(['상세 데이터 버전  |  기준일: ' + (meta.end || '')]);
     s2.push(['출처: ' + meta.source]);
     s2.push([]);
@@ -1538,7 +1538,7 @@
 
     /* ── 시트 3: 일일종가 ── */
     var s3 = [];
-    s3.push(['마음대로하는 종목분석 일일 종가 (' + (meta.start || '') + ' ~ ' + (meta.end || '') + ')']);
+    s3.push(['코스피 종목 분석 일일 종가 (' + (meta.start || '') + ' ~ ' + (meta.end || '') + ')']);
     s3.push(['출처: ' + meta.source + ' | 단위: 원(KRW) | 데이터 기준일: ' + (meta.end || '')]);
     s3.push(['날짜'].concat(headers));
     DATES.forEach(function (d, i) {
@@ -1587,7 +1587,7 @@
       '연간데이터'
     );
 
-    var fname = '마음대로하는_종목분석_' + (meta.end || '').replace(/-/g, '') + '.xlsx';
+    var fname = '코스피_종목분석_' + (meta.end || '').replace(/-/g, '') + '.xlsx';
     XLSX.writeFile(wb, fname);
     toast('엑셀 파일을 내려받았습니다. (5개 시트 · ' + stocks.length + '종목)');
   }

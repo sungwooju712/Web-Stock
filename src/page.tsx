@@ -36,7 +36,7 @@ export const Page: FC<{ meta: Meta; prices: PricesMeta }> = ({ meta, prices }) =
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>마음대로하는 종목분석 · 코스피 시총·부채비율·영업이익률·PER</title>
+        <title>코스피 종목 분석 · 시총·부채비율·영업이익률·PER</title>
         <meta
           name="description"
           content="코스피 전 종목(942개)을 시가총액, 부채비율, 영업이익률, PER, ROE, 배당수익률, 분기 실적(매출·영업이익 YoY/QoQ)으로 조건 검색하고, 원하는 종목을 직접 골라 종가 분석·보고서·엑셀까지 받는 무료 분석 도구."
@@ -56,7 +56,7 @@ export const Page: FC<{ meta: Meta; prices: PricesMeta }> = ({ meta, prices }) =
           <div class="header-inner">
             <div class="brand">
               <div class="brand-mark" aria-hidden="true">
-                M
+                K
               </div>
               <div class="brand-text">
                 <h1>코스피 종목 분석</h1>
@@ -475,7 +475,7 @@ export const Page: FC<{ meta: Meta; prices: PricesMeta }> = ({ meta, prices }) =
             <p class="footer-meta">
               스냅샷 수집 {collectedText} · 종목 {meta.stockCount}개 · 업종 {meta.industries.length}개
               <span class="sep">|</span>
-              <span class="footer-sign">마음대로하는 종목분석 · made by <strong>최미경</strong></span>
+              <span class="footer-sign">코스피 종목 분석 · made by <strong>최미경</strong></span>
             </p>
           </footer>
         </main>
