@@ -59,7 +59,7 @@ export const Page: FC<{ meta: Meta; prices: PricesMeta }> = ({ meta, prices }) =
                 M
               </div>
               <div class="brand-text">
-                <h1>마음대로하는 종목분석</h1>
+                <h1>코스피 종목 분석</h1>
                 <p class="brand-sub">
                   <span class="kospi-only-badge">코스피 전용</span> 코스피 전 종목{' '}
                   <strong>{meta.stockCount.toLocaleString()}</strong>개 · 재무지표 조건검색 + 종가 분석
