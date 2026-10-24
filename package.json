@@ -1,11 +1,13 @@
 {
-  "name": "webapp",
+  "name": "kospi-screener",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "wrangler pages dev",
-    "deploy": "npm run build && wrangler pages deploy",
+    "preview": "wrangler pages dev dist",
+    "deploy": "npm run build && wrangler pages deploy dist",
+    "snapshot": "node scripts/fetch-snapshot.mjs",
+    "snapshot:test": "node scripts/fetch-snapshot.mjs --limit 30",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings"
   },
   "dependencies": {

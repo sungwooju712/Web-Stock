@@ -1,21 +1,267 @@
-```txt
-npm install
-npm run dev
+# KOSPI 스크리너
+
+코스피 **전 종목(942개)** 을 시가총액 · 부채비율 · 영업이익률 · PER · ROE · 배당수익률 · 매출성장률로
+조건 검색하는 무료 주식 스크리너입니다.
+
+- **데이터 출처**: 네이버금융 공개 API (`m.stock.naver.com`)
+- **기술 스택**: Hono + TypeScript + Vite → Cloudflare Pages (Workers)
+- **프론트엔드**: 바닐라 JS (프레임워크 없음), CDN 미사용 · 자체 CSS
+
+---
+
+## 1. 공개 URL
+
+| 구분 | URL |
+|---|---|
+| 프리뷰(샌드박스) | `https://3000-ipl8hqb6bkctnjgmrad3o-5185f4aa.sandbox.novita.ai` |
+| 프로덕션 | *배포 후 기입* |
+
+---
+
+## 2. 핵심 설계 결정 (중요)
+
+### 왜 "실시간 조회"가 아니라 "스냅샷 + 개별 실시간"인가
+
+검증 결과 **네이버금융 API는 종목당 재무 1회 호출에 약 820ms**가 걸립니다.
+942종목 × 2회 호출 = **약 60~90초**가 필요합니다.
+
+Cloudflare Workers는 **요청당 서브리퀘스트 50개 제한**과 CPU 타임 제한이 있어
+요청 시점에 942종목을 긁는 것은 **구조적으로 불가능**합니다.
+
+따라서 3단 구조를 채택했습니다.
+
+```
+[1] 빌드타임 스냅샷  : scripts/fetch-snapshot.mjs → src/data/snapshot.json (411KB)
+                      942종목 재무+시세를 50초에 수집, 번들에 포함
+[2] 서버측 필터링    : /api/stocks 가 메모리에서 즉시 필터/정렬/페이지네이션 (<10ms)
+[3] 개별 실시간 갱신 : /api/stock/:code/live 가 해당 종목만 네이버 실시간 조회
 ```
 
-```txt
+**트레이드오프(솔직히)**: 재무지표는 스냅샷 시점 기준입니다. 주가는 종목 상세에서 실시간으로 갱신됩니다.
+지표를 최신으로 유지하려면 `npm run snapshot` 후 재배포하세요.
+
+### 데이터 정합성 검증 결과
+
+| 항목 | 결과 |
+|---|---|
+| 코스피 전체 행 | 2,495행 |
+| ETF / ETN | 1,553개 → **제외** |
+| 실주식 | **942종목** (우선주 109개 포함) |
+| 업종 매핑 | 940/942 (네이버 79개 업종 그룹) |
+| 부채비율·영업이익률·PBR | 935/942 (99.3%) |
+| PER | 732/942 (77.7%) |
+| 배당수익률 | 681/942 (72.3%) |
+
+**PER 누락 210건의 원인을 팩트체크했습니다:**
+- 203건: 순이익 적자(EPS 음수) → **PER 계산이 원천적으로 불가능한 정상 케이스**
+- 7건: 지배주주순이익 기준 EPS가 음수 (예: 하이트진로홀딩스 순이익 159억이나 EPS −109원)
+- **데이터 오류는 0건** — 모두 실제로 PER을 산출할 수 없는 종목입니다.
+
+---
+
+## 3. 구현된 기능
+
+### 3-1. 조회 조건 (요청사항)
+
+| 조건 | 범위 | UI |
+|---|---|---|
+| **시가총액** | 최소/최대 (억원) | 입력 + `1,000억↑` `3,000억↑` `1조↑` `5조↑` 칩 |
+| **부채비율** | 상한 (%) | 입력 + `100%↓` `200%↓` `400%↓` 칩 |
+| **영업이익률** | 하한 (%) | 입력 + `흑자` `5%↑` `10%↑` `20%↑` 칩 |
+| **PER** | 최소~최대 (배) | 입력 + `10배↓` `15배↓` `20배↓` 칩 |
+| **매출액** | 하한 (억원) | 입력 |
+
+### 3-2. 추가 지표 (요청: 2~3개 → 4개 구현)
+
+| 지표 | 설명 |
+|---|---|
+| **ROE** | 자기자본이익률 하한 (%) |
+| **PBR** | 주가순자산비율 상한 (배) |
+| **배당수익률** | 하한 (%) |
+| **매출 3년 CAGR** | 연평균 매출성장률 하한 (%, 자체 계산) |
+
+### 3-3. 부가 기능
+
+- **빠른 조건 프리셋 5종**: 가치주 / 성장주 / 배당주 / 저부채 / 대형주
+- **즐겨찾기**: 별 클릭 → localStorage 저장, 헤더에 개수 배지
+- **즐겨찾기만 보기**: 서버측 화이트리스트 필터 (페이지와 무관하게 전체에서 조회)
+- **메모 편집**: 투자 메모 / 태그 / 목표가 → localStorage 저장
+- **종목 상세 드로어**: 연간 재무 3개년 + **실시간 지표** + 3개년 실적 추이 표
+- **정렬**: 11개 컬럼 클릭 정렬 (오름/차순)
+- **CSV 내보내기**: 현재 조건 전체(최대 5,000건) + 메모/태그 포함, BOM 처리로 엑셀 한글 정상
+- **다크 아닌 라이트 테마**, 모바일 반응형 (≤720px에서 업종 컬럼 숨김)
+- **키보드 접근성**: `/` 검색 포커스, ESC 닫기, 정렬 헤더 tabindex
+
+---
+
+## 4. API 명세
+
+### `GET /api/stocks`
+조건 검색 (서버측 필터링)
+
+**파라미터**
+```
+q                 종목명/코드/업종 검색어
+marketCapMin      시가총액 최소 (억원)
+marketCapMax      시가총액 최대 (억원)
+debtRatioMax      부채비율 상한 (%)
+opMarginMin       영업이익률 하한 (%)
+perMin / perMax   PER 구간 (배)
+revenueMin        매출액 하한 (억원)
+roeMin            ROE 하한 (%)
+pbrMax            PBR 상한 (배)
+divYieldMin       배당수익률 하한 (%)
+revenueGrowthMin  매출 3년 CAGR 하한 (%)
+industry          업종명 (정확히 일치)
+excludePreferred  1 = 우선주 제외
+codes             쉼표 구분 종목코드 화이트리스트 (즐겨찾기용)
+sort              marketCap|per|pbr|opMargin|debtRatio|roe|divYield|
+                  revenue|revenueCagr|changeRate|price|name
+dir               asc|desc
+page / pageSize   1 | 10~200 (기본 50)
+```
+
+**응답**
+```json
+{
+  "total": 183,
+  "page": 1,
+  "pageSize": 50,
+  "pageCount": 4,
+  "sort": "marketCap",
+  "dir": "desc",
+  "stats": { "count": 183, "medianPer": 7.02, "medianPbr": 0.55,
+             "avgDebtRatio": 69.67, "medianOpMargin": 8.93,
+             "avgDivYield": 3.9, "totalMarketCap": 28329166 },
+  "facets": [{ "industry": "자동차부품", "count": 20 }],
+  "rows": [ { "code": "005930", "name": "삼성전자", "marketCap": 12481805,
+              "per": 9.58, "pbr": 2.48, "opMargin": 13.07,
+              "debtRatio": 29.94, "roe": 10.85, "divYield": 0.78,
+              "revenueCagr": 13.51, "industry": "반도체와반도체장비", ... } ]
+}
+```
+
+### `GET /api/stock/:code`
+스냅샷 기준 단일 종목
+
+### `GET /api/stock/:code/live`
+네이버금융 실시간 조회 (2분 메모리 캐시)
+→ 현재가, PER, PBR, EPS, BPS, 배당수익률, 외국인소진율, 52주 최고/최저, 3개년 재무 시계열
+
+### `GET /api/meta` · `GET /api/health`
+수집 메타데이터 / 헬스체크
+
+---
+
+## 5. 프로젝트 구조
+
+```
+webapp/
+├── src/
+│   ├── index.tsx            # Hono 앱: API 라우트 + 페이지 렌더
+│   ├── page.tsx             # JSX 서버 렌더링 (헤더/필터/테이블/드로어/모달)
+│   ├── lib/screen.ts        # 순수 필터·정렬·통계 로직 (의존성 없음)
+│   └── data/snapshot.json   # 942종목 스냅샷 (411KB, 빌드 산출물 아님·커밋 대상)
+├── public/static/
+│   ├── app.js               # 클라이언트 로직 (즐겨찾기/메모/정렬/CSV)
+│   ├── style.css            # 스타일시트
+│   └── favicon.svg
+├── scripts/
+│   └── fetch-snapshot.mjs   # 네이버금융 수집기 (동시성 12, 재시도 3회)
+├── ecosystem.config.cjs     # PM2
+└── wrangler.jsonc
+```
+
+---
+
+## 6. 사용법
+
+```bash
+# 의존성
+npm install
+
+# 스냅샷 갱신 (재무지표 최신화 — 약 50초)
+npm run snapshot
+npm run snapshot:test   # 앞 30종목만 빠르게 확인
+
+# 빌드
+npm run build
+
+# 로컬 실행 (PM2)
+pm2 start ecosystem.config.cjs
+curl http://localhost:3000/api/health
+
+# 배포
 npm run deploy
 ```
 
-[For generating/synchronizing types based on your Worker configuration run](https://developers.cloudflare.com/workers/wrangler/commands/#types):
+---
 
-```txt
-npm run cf-typegen
-```
+## 7. 데이터 모델
 
-Pass the `CloudflareBindings` as generics when instantiation `Hono`:
-
+### Stock (스냅샷 레코드)
 ```ts
-// src/index.ts
-const app = new Hono<{ Bindings: CloudflareBindings }>()
+{
+  code: string            // 종목코드 6자리
+  name: string
+  price: number | null    // 현재가 (원)
+  changeRate: number | null  // 등락률 (%)
+  marketCap: number | null   // 시가총액 (억원) ★단위 주의
+  isPreferred: boolean
+  industry: string | null
+
+  revenue: number | null     // 매출액 (억원)
+  opIncome, netIncome        // 영업이익, 당기순이익 (억원)
+  opMargin: number | null    // 영업이익률 (%)
+  roe, debtRatio: number|null
+  revenueCagr: number | null // 매출 3년 CAGR (%)
+
+  per, pbr, divYield: number | null
+  foreignRate, pos52: number | null  // pos52: 52주 밴드 내 위치 0~100
+  finYear: string | null     // 재무 기준 회계연도 (예 "202512")
+}
 ```
+
+### 저장소
+- **재무·시세**: `src/data/snapshot.json` (빌드 번들에 포함, 런타임 읽기 전용)
+- **즐겨찾기·메모**: 브라우저 `localStorage`
+  - `kospi-screener:favorites:v1`
+  - `kospi-screener:memos:v1`
+  - `kospi-screener:ui:v1`
+- **D1/KV/R2 사용 안 함** — 서버에 사용자 데이터를 저장하지 않습니다(개인정보 수집 없음)
+
+---
+
+## 8. 미구현 / 향후 개선
+
+- [ ] **스냅샷 자동 갱신** — 현재 수동(`npm run snapshot`). D1 + Cron(또는 lazy 갱신)으로 일 1회 자동화 권장
+      *단, 호스팅 배포 경로는 `triggers`(cron) 미지원 → 요청 시점 lazy 갱신 방식 필요*
+- [ ] **코스닥 확장** — API는 `KOSDAQ` 카테고리 동일 구조로 지원 가능
+- [ ] **분기 실적** — 네이버 `finance/quarter` 엔드포인트로 확장 가능
+- [ ] **즐겨찾기 서버 동기화** — 현재 브라우저 종속. 계정 로그인 + D1 저장 필요
+- [ ] **차트** — 52주 밴드 위치(`pos52`)는 데이터만 있고 시각화 미구현
+- [ ] **백테스트** — 조건 조합의 과거 성과 검증
+
+---
+
+## 9. 알려진 제약 (솔직한 고지)
+
+1. **재무지표는 스냅샷 시점 기준**입니다. 실시간이 아닙니다.
+2. **PER/PBR/배당수익률**은 수집 시점 시세 기준이라 당일 주가 변동이 반영되지 않습니다.
+   (종목 상세 드로어에서만 실시간)
+3. **DART 미연동** — 요청에 "DART 또는 네이버증시"라고 하셨고, DART는 API 키 발급과
+   공시 파싱이 필요하며 지표 산출이 복잡합니다. 네이버금융이 요청하신 5개 지표를
+   모두 제공하므로 **네이버금융 단일 소스**로 구현했습니다.
+4. **우선주는 기본 포함**입니다. "우선주 제외" 체크박스로 833종목만 볼 수 있습니다.
+5. **투자 판단의 근거로 단독 사용하지 마세요.** 정보 제공용입니다.
+
+---
+
+## 10. 변경 이력
+
+| 날짜 | 내용 |
+|---|---|
+| 2026-10-24 | 최초 구현. 942종목 스냅샷, 8개 지표 필터, 즐겨찾기·메모·CSV, 실시간 상세 |
+| 2026-10-24 | favicon 404 수정 (`/static/favicon.svg`) |
+| 2026-10-24 | 즐겨찾기 필터를 클라이언트→서버측 화이트리스트로 변경 (페이지 무관 전체 조회) |
+| 2026-10-24 | 빈 즐겨찾기 시 전체 노출 버그 수정 (`codes` 빈 배열도 필터 적용) |
