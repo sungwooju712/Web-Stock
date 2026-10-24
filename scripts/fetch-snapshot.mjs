@@ -284,16 +284,29 @@ async function main() {
   console.error('■ 1) 코스피 종목 목록 수집')
   const { rows, totalCount } = await fetchStockList()
 
-  // 실주식만 (ETF/ETN/리츠 제외) — stockEndType === 'stock'
+  // 1차: 실주식만 (ETF/ETN/리츠 제외) — stockEndType === 'stock'
   const stocks = rows.filter((r) => r.stockEndType === 'stock')
-  // 중복 제거
+
+  // 2차: 코스피 강제 검증.
+  // 네이버 응답의 sosok 은 '0'=코스피, '1'=코스닥, '2'=코넥스.
+  // 엔드포인트를 KOSPI 로 호출하고 있지만 응답을 신뢰하지 않고 명시적으로 재검증한다.
+  // 코스닥/코넥스가 단 1건이라도 섞이면 조용히 넘기지 않고 즉시 중단한다.
+  const nonKospi = stocks.filter((r) => r.sosok !== '0')
+  if (nonKospi.length) {
+    const sample = nonKospi.slice(0, 10).map((r) => `${r.itemCode} ${r.stockName}(sosok=${r.sosok})`)
+    console.error(`✘ 코스피가 아닌 종목 ${nonKospi.length}건 발견: ${sample.join(', ')}`)
+    console.error('  → 코스피 전용 스크리너이므로 수집을 중단합니다.')
+    process.exit(1)
+  }
+
+  // 3차: 중복 제거
   const seen = new Set()
   const uniq = stocks.filter((s) => {
     if (seen.has(s.itemCode)) return false
     seen.add(s.itemCode)
     return true
   })
-  console.error(`  실주식 ${uniq.length}종목 (전체 ${totalCount}행 중)`)
+  console.error(`  실주식 ${uniq.length}종목 (전체 ${totalCount}행 중) · 코스피 검증 통과(sosok=0)`)
 
   console.error('■ 2) 업종 매핑 수집')
   const industryMap = await fetchIndustryMap()
@@ -352,6 +365,7 @@ async function main() {
     return {
       code: s.itemCode,
       name: s.stockName,
+      market: 'KOSPI', // 코스피 전용. 코스닥은 수집 대상에서 제외된다.
       price,
       change: num(s.compareToPreviousClosePrice),
       changeRate: num(s.fluctuationsRatio),

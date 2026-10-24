@@ -31,6 +31,13 @@ const DATA = snapshot as unknown as {
   stocks: Stock[]
 }
 
+// 코스피 전용 가드.
+// 수집기가 이미 sosok=0 만 남기지만, 스냅샷이 오염되거나 수동 편집되어도
+// 코스닥/코넥스 종목이 화면에 노출되지 않도록 런타임에서 한 번 더 걸러낸다.
+const KOSPI_STOCKS: Stock[] = (DATA.stocks as (Stock & { market?: string })[]).filter(
+  (s) => s.market == null || s.market === 'KOSPI'
+)
+
 const SORT_KEYS: SortKey[] = [
   'marketCap',
   'per',
@@ -93,7 +100,7 @@ app.get('/api/stocks', (c) => {
   const page = Math.max(1, Number(sp.get('page') || 1) || 1)
   const pageSize = Math.min(200, Math.max(10, Number(sp.get('pageSize') || 50) || 50))
 
-  const filtered = filterStocks(DATA.stocks as Stock[], filters)
+  const filtered = filterStocks(KOSPI_STOCKS, filters)
   const sorted = sortStocks(filtered, sort, dir)
 
   const total = sorted.length
@@ -120,7 +127,7 @@ app.get('/api/stocks', (c) => {
 /** 단일 종목 요약 (스냅샷 기준) */
 app.get('/api/stock/:code', (c) => {
   const code = c.req.param('code')
-  const s = (DATA.stocks as Stock[]).find((x) => x.code === code)
+  const s = KOSPI_STOCKS.find((x) => x.code === code)
   if (!s) return c.json({ error: 'not found' }, 404)
   return c.json(s)
 })

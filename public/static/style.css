@@ -129,6 +129,22 @@ textarea {
   font-variant-numeric: tabular-nums;
 }
 
+/* 코스피 전용 표식 — 코스닥 미포함을 사용자가 즉시 알 수 있게 */
+.kospi-only-badge {
+  display: inline-block;
+  background: var(--brand-soft);
+  border: 1px solid #cfe0ff;
+  color: var(--brand);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: -0.1px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-right: 3px;
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+
 .header-actions {
   display: flex;
   align-items: center;

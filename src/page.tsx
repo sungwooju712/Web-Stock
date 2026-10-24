@@ -53,7 +53,8 @@ export const Page: FC<{ meta: Meta }> = ({ meta }) => {
               <div class="brand-text">
                 <h1>KOSPI 스크리너</h1>
                 <p class="brand-sub">
-                  코스피 전 종목 <strong>{meta.stockCount.toLocaleString()}</strong>개 · 재무지표 조건검색
+                  <span class="kospi-only-badge">코스피 전용</span> 코스피 전 종목{' '}
+                  <strong>{meta.stockCount.toLocaleString()}</strong>개 · 재무지표 조건검색
                 </p>
               </div>
             </div>
