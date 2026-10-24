@@ -102,15 +102,15 @@ export const Page: FC<{ meta: Meta; prices: PricesMeta }> = ({ meta, prices }) =
 
         <main id="app-main">
           <nav id="view-tabs" aria-label="화면 전환">
-            <button type="button" class="view-tab active" data-view="screener" aria-selected="true">
-              종목 스크리너
-            </button>
-            <button type="button" class="view-tab" data-view="analysis" aria-selected="false">
+            <button type="button" class="view-tab active" data-view="analysis" aria-selected="true">
               주요 종목 분석
+            </button>
+            <button type="button" class="view-tab" data-view="screener" aria-selected="false">
+              종목 스크리너
             </button>
           </nav>
 
-          <div id="view-screener" class="view active">
+          <div id="view-screener" class="view" hidden>
           <section id="stats-strip" aria-label="조건 충족 요약">
             <div class="stat-card">
               <span class="stat-label">조건 충족</span>
@@ -440,7 +440,7 @@ export const Page: FC<{ meta: Meta; prices: PricesMeta }> = ({ meta, prices }) =
           </div>
           </div>
 
-          <div id="view-analysis" class="view" hidden>
+          <div id="view-analysis" class="view active">
             <Analysis
               collectedAt={prices.collectedAt}
               tradingDays={prices.tradingDays}

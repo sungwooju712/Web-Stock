@@ -877,7 +877,9 @@
     try {
       saved = localStorage.getItem(LS_TAB);
     } catch (e) {}
-    if (saved === 'analysis') switchView('analysis', false);
+    // 기본 진입 화면은 "주요 종목 분석".
+    // 사용자가 마지막으로 스크리너를 봤다면 그 선택을 존중한다.
+    switchView(saved === 'screener' ? 'screener' : 'analysis', false);
     // 차트 라이브러리 로딩 대기는 renderCharts() 가 자체적으로 재시도한다.
   }
 

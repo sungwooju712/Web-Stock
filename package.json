@@ -8,6 +8,7 @@
     "deploy": "npm run build && wrangler pages deploy dist",
     "snapshot": "node scripts/fetch-snapshot.mjs",
     "snapshot:test": "node scripts/fetch-snapshot.mjs --limit 30",
+    "prices": "node scripts/fetch-prices.mjs",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings"
   },
   "dependencies": {
