@@ -47,6 +47,43 @@ export const Analysis: FC<{ collectedAt: string; tradingDays: number; start: str
         종가 출처는 <strong>네이버금융</strong> 단일 기준입니다. 스냅샷 {collectedText} 수집.
       </p>
 
+      {/* ── 종목 구성: 추가 / 삭제 ── */}
+      <section id="analysis-picker" aria-label="분석 종목 구성">
+        <div class="picker-head">
+          <h3 class="analysis-h3">분석 종목</h3>
+          <p class="picker-hint">
+            코스피 종목을 검색해 추가하세요. 최대 <strong>8종목</strong>까지 그래프에 함께 표시됩니다.
+          </p>
+        </div>
+
+        <div id="picked-stocks" class="picked-stocks" aria-live="polite">
+          <span class="picked-loading">불러오는 중…</span>
+        </div>
+
+        <div class="picker-row">
+          <div class="stock-search-box">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M20 20l-3.5-3.5" />
+            </svg>
+            <input
+              id="add-stock-input"
+              type="search"
+              placeholder="종목명 또는 종목코드 (예: 카카오, 035720)"
+              autocomplete="off"
+              aria-label="추가할 종목 검색"
+              aria-autocomplete="list"
+              aria-controls="add-stock-suggest"
+            />
+            <div id="add-stock-suggest" class="suggest-list" role="listbox" hidden></div>
+          </div>
+          <button id="btn-restore-default" class="btn btn-ghost" type="button">
+            기본 4종목으로
+          </button>
+        </div>
+        <p id="picker-msg" class="picker-msg" role="status" aria-live="polite"></p>
+      </section>
+
       {/* ── 한장보고: 요약 지표 ── */}
       <section id="analysis-summary" aria-label="한눈에 보기">
         <h3 class="analysis-h3">한눈에 보기</h3>
@@ -56,13 +93,9 @@ export const Analysis: FC<{ collectedAt: string; tradingDays: number; start: str
 
         <div class="table-wrap analysis-table-wrap">
           <table id="summary-table" class="analysis-table">
-            <thead>
+            <thead id="summary-table-head">
               <tr>
                 <th scope="col">지표</th>
-                <th class="num" scope="col">삼성전자</th>
-                <th class="num" scope="col">SK하이닉스</th>
-                <th class="num" scope="col">KB금융</th>
-                <th class="num" scope="col">신한지주</th>
               </tr>
             </thead>
             <tbody id="summary-table-body">
@@ -119,13 +152,9 @@ export const Analysis: FC<{ collectedAt: string; tradingDays: number; start: str
         <h3 class="analysis-h3">월별 종가 <span class="hint">각 월 마지막 거래일 종가 · 단위 원</span></h3>
         <div class="table-wrap analysis-table-wrap">
           <table class="analysis-table" id="monthly-table">
-            <thead>
+            <thead id="monthly-table-head">
               <tr>
                 <th scope="col">연-월</th>
-                <th class="num" scope="col">삼성전자</th>
-                <th class="num" scope="col">SK하이닉스</th>
-                <th class="num" scope="col">KB금융</th>
-                <th class="num" scope="col">신한지주</th>
               </tr>
             </thead>
             <tbody id="monthly-table-body">
@@ -144,13 +173,9 @@ export const Analysis: FC<{ collectedAt: string; tradingDays: number; start: str
         </h3>
         <div class="table-wrap analysis-table-wrap">
           <table class="analysis-table" id="annual-table">
-            <thead>
+            <thead id="annual-table-head">
               <tr>
                 <th scope="row">연도</th>
-                <th class="num" scope="col">삼성전자</th>
-                <th class="num" scope="col">SK하이닉스</th>
-                <th class="num" scope="col">KB금융</th>
-                <th class="num" scope="col">신한지주</th>
               </tr>
             </thead>
             <tbody id="annual-table-body">

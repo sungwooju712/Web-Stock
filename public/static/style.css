@@ -1,5 +1,5 @@
 /* ==================================================================
-   KOSPI 스크리너 — 스타일시트
+   마음대로하는 종목분석 — 스타일시트
    ================================================================== */
 
 :root {
@@ -1962,5 +1962,392 @@ table.mini-fin th:first-child {
   .analysis-table-wrap {
     max-height: none;
     border: 0;
+  }
+}
+
+/* ==================================================================
+   종목 추가 / 삭제 (분석 종목 피커)
+   ================================================================== */
+#analysis-picker {
+  margin: 14px 0 18px;
+  padding: 14px 16px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
+.picker-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.picker-head .analysis-h3 {
+  margin: 0;
+}
+
+.picker-hint {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+
+.picker-hint strong {
+  color: var(--brand);
+}
+
+/* 선택된 종목 칩 */
+.picked-stocks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 10px;
+  min-height: 30px;
+  align-items: center;
+}
+
+.picked-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px 5px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-left: 3px solid var(--chip-accent, var(--brand));
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1;
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+
+.picked-chip:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.picked-chip .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--chip-accent, var(--brand));
+  flex: 0 0 auto;
+}
+
+.picked-chip .nm {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.picked-chip .cd {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-3);
+}
+
+.chip-x {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 1px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-3);
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.chip-x:hover {
+  background: #fde8e8;
+  color: #c62828;
+}
+
+.picked-limit,
+.picked-loading,
+.picked-empty {
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+
+/* 검색 입력 + 자동완성 */
+.picker-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.stock-search-box {
+  position: relative;
+  flex: 1 1 300px;
+  min-width: 240px;
+}
+
+.stock-search-box > svg {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: var(--text-3);
+  stroke-width: 2;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+.stock-search-box input {
+  width: 100%;
+  padding: 9px 12px 9px 34px;
+  font-family: inherit;
+  font-size: 12.5px;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+
+.stock-search-box input:focus {
+  background: var(--surface);
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(26, 86, 219, 0.12);
+}
+
+.suggest-list {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 5px);
+  left: 0;
+  right: 0;
+  max-height: 268px;
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+}
+
+.suggest-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.suggest-item:hover {
+  background: var(--brand-soft);
+}
+
+.suggest-item .nm {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.suggest-item .cd {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-3);
+}
+
+.suggest-item.is-added {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.picker-msg {
+  margin: 8px 2px 0;
+  min-height: 15px;
+  font-size: 11.5px;
+  color: var(--grText5, var(--text-2));
+}
+
+.picker-msg.is-error {
+  color: #c62828;
+  font-weight: 600;
+}
+
+/* 카드 삭제 버튼 */
+.summary-card-head {
+  position: relative;
+}
+
+.card-x {
+  position: absolute;
+  top: -4px;
+  right: -2px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-3);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+
+.summary-card:hover .card-x,
+.card-x:focus-visible {
+  opacity: 1;
+}
+
+.card-x:hover {
+  background: #fde8e8;
+  color: #c62828;
+}
+
+/* 표 헤더의 종목코드 */
+.th-code {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  color: var(--text-3);
+  letter-spacing: 0;
+}
+
+/* ==================================================================
+   만든사람 크레딧
+   ================================================================== */
+#creator-card {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+  margin: 0 0 14px;
+  padding: 15px 18px;
+  background: linear-gradient(135deg, #f7f9ff 0%, #eef3ff 55%, #f9f7ff 100%);
+  border: 1px solid #dde6fb;
+  border-radius: var(--radius);
+  position: relative;
+  overflow: hidden;
+}
+
+#creator-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(180deg, var(--brand) 0%, #8b5cf6 100%);
+}
+
+.creator-avatar {
+  flex: 0 0 auto;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand) 0%, #7c3aed 100%);
+  box-shadow: 0 4px 14px rgba(26, 86, 219, 0.3);
+}
+
+.creator-initial {
+  font-size: 19px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.5px;
+}
+
+.creator-text {
+  flex: 0 0 auto;
+}
+
+.creator-eyebrow {
+  margin: 0 0 2px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  color: var(--brand);
+}
+
+.creator-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  color: var(--text);
+}
+
+.creator-role {
+  margin: 2px 0 0;
+  font-size: 10.5px;
+  color: var(--text-3);
+  letter-spacing: 0.2px;
+}
+
+.creator-divider {
+  width: 1px;
+  height: 40px;
+  background: linear-gradient(180deg, transparent, #cfd9f5, transparent);
+  flex: 0 0 auto;
+}
+
+.creator-quote {
+  margin: 0;
+  flex: 1 1 220px;
+  font-size: 11.5px;
+  line-height: 1.65;
+  color: var(--text-2);
+  font-style: italic;
+}
+
+.footer-sign {
+  color: var(--text-2);
+}
+
+.footer-sign strong {
+  color: var(--brand);
+}
+
+@media (max-width: 720px) {
+  .creator-divider {
+    display: none;
+  }
+
+  .creator-quote {
+    flex: 1 1 100%;
+    padding-top: 10px;
+    border-top: 1px dashed #cfd9f5;
+  }
+
+  .picker-row .btn {
+    width: 100%;
+  }
+}
+
+/* 인쇄 시 피커·크레딧 숨김 */
+@media print {
+  #analysis-picker,
+  #creator-card,
+  .card-x,
+  .chip-x {
+    display: none !important;
   }
 }

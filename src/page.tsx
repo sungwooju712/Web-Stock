@@ -36,10 +36,10 @@ export const Page: FC<{ meta: Meta; prices: PricesMeta }> = ({ meta, prices }) =
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>KOSPI 스크리너 · 시총·부채비율·영업이익률·PER·분기실적</title>
+        <title>마음대로하는 종목분석 · 코스피 시총·부채비율·영업이익률·PER</title>
         <meta
           name="description"
-          content="코스피 전 종목(942개)을 시가총액, 부채비율, 영업이익률, PER, ROE, 배당수익률, 분기 실적(매출·영업이익 YoY/QoQ)으로 조건 검색하는 무료 스크리너."
+          content="코스피 전 종목(942개)을 시가총액, 부채비율, 영업이익률, PER, ROE, 배당수익률, 분기 실적(매출·영업이익 YoY/QoQ)으로 조건 검색하고, 원하는 종목을 직접 골라 종가 분석·보고서·엑셀까지 받는 무료 분석 도구."
         />
         <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
         <link rel="apple-touch-icon" href="/static/favicon.svg" />
@@ -56,13 +56,13 @@ export const Page: FC<{ meta: Meta; prices: PricesMeta }> = ({ meta, prices }) =
           <div class="header-inner">
             <div class="brand">
               <div class="brand-mark" aria-hidden="true">
-                K
+                M
               </div>
               <div class="brand-text">
-                <h1>KOSPI 스크리너</h1>
+                <h1>마음대로하는 종목분석</h1>
                 <p class="brand-sub">
                   <span class="kospi-only-badge">코스피 전용</span> 코스피 전 종목{' '}
-                  <strong>{meta.stockCount.toLocaleString()}</strong>개 · 재무지표 조건검색
+                  <strong>{meta.stockCount.toLocaleString()}</strong>개 · 재무지표 조건검색 + 종가 분석
                 </p>
               </div>
             </div>
@@ -450,13 +450,32 @@ export const Page: FC<{ meta: Meta; prices: PricesMeta }> = ({ meta, prices }) =
           </div>
 
           <footer id="app-footer">
+            {/* 만든사람 크레딧 */}
+            <section id="creator-card" aria-label="만든 사람">
+              <div class="creator-avatar" aria-hidden="true">
+                <span class="creator-initial">최</span>
+              </div>
+              <div class="creator-text">
+                <p class="creator-eyebrow">MADE BY</p>
+                <p class="creator-name">최미경</p>
+                <p class="creator-role">기획 · 디자인 · 개발</p>
+              </div>
+              <div class="creator-divider" aria-hidden="true"></div>
+              <p class="creator-quote">
+                &ldquo;종목은 마음대로 골라보고,<br />
+                판단은 숫자로 하세요.&rdquo;
+              </p>
+            </section>
+
             <p>
-              본 서비스는 네이버금융 공개 데이터를 수집한 <strong>정보 제공용 스크리너</strong>입니다.
+              본 서비스는 네이버금융 공개 데이터를 수집한 <strong>정보 제공용 분석 도구</strong>입니다.
               재무지표는 각 사 최근 확정 연간 실적(연결) 기준이며, 스냅샷 시점 이후 변동될 수 있습니다.
               <strong> 투자 판단의 근거로 단독 사용하지 마세요.</strong> 투자 손익은 투자자 본인에게 귀속됩니다.
             </p>
             <p class="footer-meta">
               스냅샷 수집 {collectedText} · 종목 {meta.stockCount}개 · 업종 {meta.industries.length}개
+              <span class="sep">|</span>
+              <span class="footer-sign">마음대로하는 종목분석 · made by <strong>최미경</strong></span>
             </p>
           </footer>
         </main>

@@ -142,6 +142,15 @@ app.get('/api/stock/:code', (c) => {
 })
 
 /**
+ * 종목명 인덱스 (분석 뷰의 종목 추가 자동완성용)
+ * 942종목 × [코드, 이름] 배열 = 약 20KB. 입력창 포커스 시 지연 로드한다.
+ */
+app.get('/api/stocks/names', (c) => {
+  const rows = KOSPI_STOCKS.map((s) => [s.code, s.name])
+  return c.json({ count: rows.length, rows })
+})
+
+/**
  * 단일 종목 실시간 상세 (네이버 금융 직접 조회)
  * - 스냅샷은 빌드 시점이므로, 개별 종목은 실시간으로 갱신할 수 있게 한다.
  * - 서브리퀘스트 2회만 사용하므로 Workers 제한 내에서 안전.
@@ -317,7 +326,211 @@ app.get('/api/prices', (c) => {
     summary: rows,
     monthly,
     annual,
+    // 종목 추가/삭제 시 클라이언트가 기간 최고·최저를 그대로 재사용한다
+    period,
   })
+})
+
+/* ------------------------------------------------------------------ */
+/* 종목 추가 — 임의 코스피 종목 종가 런타임 수집                       */
+/* ------------------------------------------------------------------ */
+
+const PRICE_STOCK_TTL = 3_600_000 // 1시간
+const PRICE_STOCK_CACHE_MAX = 40
+const priceStockCache = new Map<string, { at: number; payload: any }>()
+
+function todayCompact(): string {
+  const d = new Date()
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getUTCFullYear()}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}`
+}
+
+/**
+ * 네이버 siseJson 은 작은따옴표 + 공백/탭이 섞인 JSON 이다.
+ * 헤더 행([날짜,시가,고가,저가,종가,거래량,외국인소진율])은 버린다.
+ */
+function parseSiseJson(text: string) {
+  const cleaned = text.trim().replace(/'/g, '"')
+  const rows = JSON.parse(cleaned)
+  const out: { date: string; high: number; close: number }[] = []
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i]
+    if (!Array.isArray(r) || r.length < 5) continue
+    const rawDate = String(r[0])
+    if (rawDate.length !== 8) continue
+    const close = Number(r[4])
+    if (!Number.isFinite(close)) continue
+    out.push({
+      date: `${rawDate.slice(0, 4)}-${rawDate.slice(4, 6)}-${rawDate.slice(6, 8)}`,
+      high: Number(r[2]),
+      close,
+    })
+  }
+  return out
+}
+
+/**
+ * 종목 추가용 종가 시계열 조회
+ *   GET /api/prices/stock/:code
+ *
+ * 설계 메모
+ *  - KOSPI_STOCKS 스냅샷 화이트리스트에 있는 종목만 허용한다.
+ *    이로써 코스피 전용 가드가 수집기 2겹 + 런타임 1겹 + 이 엔드포인트 1겹으로 총 4겹이 된다.
+ *    스냅샷에 없는 코드(코스닥·코넥스·ETF)는 400 으로 거부된다.
+ *  - 일별 종가는 기존 prices.json 의 거래일 축(928일)에 그대로 정렬해 내려준다.
+ *    클라이언트가 인덱스만 맞추면 되므로 병합 로직이 단순해진다.
+ *  - 네이버 서브리퀘스트 1회. 결과는 1시간 메모리 캐시 (Workers isolate 단위).
+ */
+app.get('/api/prices/stock/:code', async (c) => {
+  const code = c.req.param('code')
+  if (!/^\d{6}$/.test(code)) return c.json({ error: 'invalid code' }, 400)
+
+  const target = KOSPI_STOCKS.find((s) => s.code === code)
+  if (!target) {
+    return c.json(
+      { error: 'not_kospi', message: '코스피 종목이 아닙니다. 이 화면은 코스피 전용입니다.' },
+      400
+    )
+  }
+
+  const cached = priceStockCache.get(code)
+  if (cached && Date.now() - cached.at < PRICE_STOCK_TTL) {
+    return c.json({ ...(cached.payload as object), cached: true })
+  }
+
+  const start = (PRICES.meta.start || '2023-01-02').replace(/-/g, '')
+  const url =
+    `https://api.finance.naver.com/siseJson.naver?symbol=${code}` +
+    `&requestType=1&startTime=${start}&endTime=${todayCompact()}&timeframe=day`
+
+  let text: string
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': UA,
+        Accept: 'application/json, text/plain, */*',
+        'Accept-Language': 'ko-KR,ko;q=0.9',
+        Referer: 'https://finance.naver.com/',
+      },
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    text = await res.text()
+  } catch (e) {
+    return c.json({ error: 'upstream_failed', detail: String(e) }, 502)
+  }
+
+  let rows: { date: string; high: number; close: number }[]
+  try {
+    rows = parseSiseJson(text)
+  } catch (e) {
+    return c.json({ error: 'parse_failed', detail: String(e) }, 502)
+  }
+
+  if (!rows.length) {
+    return c.json(
+      { error: 'no_data', message: '해당 종목의 종가 데이터가 없습니다(거래정지·상장폐지 등).' },
+      404
+    )
+  }
+
+  const closeMap = new Map<string, number>()
+  const highMap = new Map<string, number>()
+  for (const r of rows) {
+    closeMap.set(r.date, r.close)
+    highMap.set(r.date, r.high)
+  }
+
+  // 기존 거래일 축에 정렬
+  const closes: (number | null)[] = PRICES.daily.map((d) => {
+    const v = closeMap.get(d.date)
+    return v == null || !Number.isFinite(v) ? null : v
+  })
+
+  // 월별: 각 월의 마지막 비결측 종가
+  const monthLast: Record<string, number | null> = {}
+  for (let i = 0; i < PRICES.daily.length; i++) {
+    const ym = PRICES.daily[i].date.slice(0, 7)
+    const v = closes[i]
+    if (v != null) monthLast[ym] = v
+    else if (!(ym in monthLast)) monthLast[ym] = null
+  }
+  const monthly: Record<string, number | null> = {}
+  for (const m of PRICES.monthly) {
+    monthly[m.ym] = monthLast[m.ym] ?? null
+  }
+
+  // 연간: 각 연도의 마지막 비결측 종가
+  const yearLast: Record<string, number | null> = {}
+  for (let i = 0; i < PRICES.daily.length; i++) {
+    const y = PRICES.daily[i].date.slice(0, 4)
+    const v = closes[i]
+    if (v != null) yearLast[y] = v
+    else if (!(y in yearLast)) yearLast[y] = null
+  }
+  const annual: Record<string, number | null> = {}
+  for (const a of PRICES.annual) {
+    annual[a.year] = yearLast[a.year] ?? null
+  }
+
+  // 기간 최고/최저 (종가 기준) + 장중 최고가
+  let closeHigh: number | null = null
+  let closeHighDate: string | null = null
+  let closeLow: number | null = null
+  let closeLowDate: string | null = null
+  let highIntraday: number | null = null
+  let highIntradayDate: string | null = null
+  for (let i = 0; i < PRICES.daily.length; i++) {
+    const d = PRICES.daily[i].date
+    const v = closes[i]
+    if (v != null) {
+      if (closeHigh == null || v > closeHigh) {
+        closeHigh = v
+        closeHighDate = d
+      }
+      if (closeLow == null || v < closeLow) {
+        closeLow = v
+        closeLowDate = d
+      }
+    }
+    const h = highMap.get(d)
+    if (h != null && Number.isFinite(h)) {
+      if (highIntraday == null || h > highIntraday) {
+        highIntraday = h
+        highIntradayDate = d
+      }
+    }
+  }
+
+  const payload = {
+    code,
+    name: target.name,
+    industry: target.industry ?? null,
+    isPreferred: target.isPreferred ?? false,
+    startDate: rows[0]?.date ?? null,
+    endDate: rows[rows.length - 1]?.date ?? null,
+    dataDays: rows.length,
+    closes,
+    monthly,
+    annual,
+    period: {
+      closeHigh,
+      closeHighDate,
+      closeLow,
+      closeLowDate,
+      highIntraday,
+      highIntradayDate,
+    },
+    fetchedAt: new Date().toISOString(),
+  }
+
+  // 캐시 (오래된 것부터 정리)
+  if (priceStockCache.size >= PRICE_STOCK_CACHE_MAX) {
+    const oldest = [...priceStockCache.entries()].sort((a, b) => a[1].at - b[1].at)[0]
+    if (oldest) priceStockCache.delete(oldest[0])
+  }
+  priceStockCache.set(code, { at: Date.now(), payload })
+
+  return c.json(payload)
 })
 
 /** 일별 종가 시계열 (기간 필터 지원) */
