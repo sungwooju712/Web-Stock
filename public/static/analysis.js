@@ -122,7 +122,6 @@
         renderMonthlyTable();
         renderAnnualTable();
         renderCharts();
-        bindActions();
       })
       .catch(function (err) {
         loaded = false;
@@ -873,6 +872,9 @@
   /* ---------------- 시작 ---------------- */
   function init() {
     bindTabs();
+    // 데이터 로딩을 기다리지 않고 바로 바인딩한다.
+    // (예전엔 로드 완료 후에만 붙어서, 로딩 전에 다운로드 버튼을 누르면 무반응이었다)
+    bindActions();
     var saved = null;
     try {
       saved = localStorage.getItem(LS_TAB);
