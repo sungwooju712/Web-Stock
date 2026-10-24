@@ -28,10 +28,10 @@ export const Page: FC<{ meta: Meta }> = ({ meta }) => {
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>KOSPI 스크리너 · 시총·부채비율·영업이익률·PER</title>
+        <title>KOSPI 스크리너 · 시총·부채비율·영업이익률·PER·분기실적</title>
         <meta
           name="description"
-          content="코스피 전 종목(942개)을 시가총액, 부채비율, 영업이익률, PER, ROE, 배당수익률로 조건 검색하는 무료 스크리너."
+          content="코스피 전 종목(942개)을 시가총액, 부채비율, 영업이익률, PER, ROE, 배당수익률, 분기 실적(매출·영업이익 YoY/QoQ)으로 조건 검색하는 무료 스크리너."
         />
         <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
         <link rel="apple-touch-icon" href="/static/favicon.svg" />
@@ -86,7 +86,7 @@ export const Page: FC<{ meta: Meta }> = ({ meta }) => {
             데이터 출처 네이버금융 ·{' '}
             <time datetime={meta.collectedAt}>스냅샷 {collectedText}</time>
             <span class="sep">|</span>
-            확정 연간 실적 기준 · 스냅샷 이후 변동은 종목 상세에서 실시간 갱신
+            확정 연간·분기 실적 기준 · 스냅샷 이후 변동은 종목 상세에서 실시간 갱신
             <span class="sep">|</span>
             전체 {meta.totalRowsScanned.toLocaleString()}행 중 ETF·ETN 제외 실주식 {meta.stockCount}종목
           </div>
@@ -254,6 +254,67 @@ export const Page: FC<{ meta: Meta }> = ({ meta }) => {
                   </fieldset>
                 </details>
 
+                <details class="filter-more" open>
+                  <summary>분기 실적</summary>
+
+                  <fieldset class="filter-group">
+                    <legend>
+                      분기 매출 YoY <span class="unit">% 이상</span>
+                    </legend>
+                    <input id="f-qyoy-min" type="number" inputmode="decimal" placeholder="예 10" step="1" />
+                    <div class="chips small">
+                      <button type="button" class="chip" data-qyoy="0">플러스</button>
+                      <button type="button" class="chip" data-qyoy="10">10%↑</button>
+                      <button type="button" class="chip" data-qyoy="20">20%↑</button>
+                      <button type="button" class="chip" data-qyoy="30">30%↑</button>
+                    </div>
+                  </fieldset>
+
+                  <fieldset class="filter-group">
+                    <legend>
+                      분기 영업이익 YoY <span class="unit">% 이상</span>
+                    </legend>
+                    <input id="f-qopyoy-min" type="number" inputmode="decimal" placeholder="예 15" step="1" />
+                    <div class="chips small">
+                      <button type="button" class="chip" data-qopyoy="0">플러스</button>
+                      <button type="button" class="chip" data-qopyoy="20">20%↑</button>
+                      <button type="button" class="chip" data-qopyoy="50">50%↑</button>
+                    </div>
+                  </fieldset>
+
+                  <fieldset class="filter-group">
+                    <legend>
+                      분기 영업이익률 <span class="unit">% 이상</span>
+                    </legend>
+                    <input id="f-qopmargin-min" type="number" inputmode="decimal" placeholder="예 8" step="0.5" />
+                  </fieldset>
+
+                  <fieldset class="filter-group">
+                    <legend>
+                      분기 매출 QoQ <span class="unit">% 이상</span>
+                    </legend>
+                    <input id="f-qqoq-min" type="number" inputmode="decimal" placeholder="예 0" step="1" />
+                  </fieldset>
+
+                  <fieldset class="filter-group">
+                    <legend>
+                      영업이익 흑자 연속 <span class="unit">분기 이상</span>
+                    </legend>
+                    <input id="f-opstreak-min" type="number" inputmode="numeric" placeholder="예 4 (최대 5)" min="0" step="1" max="5" />
+                    <div class="chips small">
+                      <button type="button" class="chip" data-streak="2">2분기↑</button>
+                      <button type="button" class="chip" data-streak="4">4분기↑</button>
+                      <button type="button" class="chip" data-streak="5">5분기↑</button>
+                    </div>
+                  </fieldset>
+
+                  <p class="filter-hint">
+                    네이버금융이 제공하는 분기 창은 <strong>최근 5개 분기</strong>입니다. 따라서 흑자연속은 최대 5분기까지이며,
+                    5는 "제공된 5개 분기 전부 흑자"를 뜻합니다. 분기 값은 <strong>단일분기(비누적)</strong> 확정 실적 기준이고,
+                    YoY는 전년 동기 대비, QoQ는 직전 분기 대비입니다.
+                  </p>
+                </details>
+
                 <fieldset class="filter-group">
                   <legend>업종</legend>
                   <select id="f-industry">
@@ -336,13 +397,19 @@ export const Page: FC<{ meta: Meta }> = ({ meta }) => {
                       <th class="num" scope="col" data-sort="revenueCagr" tabindex="0">
                         매출성장 <span class="sort-ind"></span>
                       </th>
+                      <th class="num col-q" scope="col" data-sort="qYoY" tabindex="0" title="직전 확정 분기 매출액의 전년 동기 대비 증가율">
+                        분기매출YoY <span class="sort-ind"></span>
+                      </th>
+                      <th class="num col-q" scope="col" data-sort="qOpMargin" tabindex="0" title="직전 확정 분기의 영업이익률">
+                        분기영업이익률 <span class="sort-ind"></span>
+                      </th>
                       <th class="col-ind" scope="col">업종</th>
                       <th class="col-edit" scope="col"><span class="sr-only">편집</span></th>
                     </tr>
                   </thead>
                   <tbody id="results-body">
                     <tr class="skeleton-row">
-                      <td colspan="14">
+                      <td colspan="16">
                         <div class="skeleton-loading">데이터를 불러오는 중입니다…</div>
                       </td>
                     </tr>

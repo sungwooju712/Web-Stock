@@ -264,15 +264,114 @@ function parseIntegration(json) {
   }
 }
 
+/* ------------------------------------------------------------------ */
+/* 분기 실적 파서                                                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 네이버 finance/quarter 응답을 파싱한다.
+ *
+ * ⚠ 검증된 사실 (2026-10-24 실측):
+ *   이 API 의 분기 값은 **누적이 아니라 단일분기** 값이다.
+ *   삼성전자 2025 연간 매출 3,336,059억 vs 분기 202512 값 938,374억 →
+ *   938,374 + 860,617 + 745,663 + Q1(791,405) = 3,336,059 로 정확히 일치.
+ *   만약 누적으로 착각하고 차분을 취하면 QoQ/YoY 가 전부 틀어진다.
+ *
+ * 확정 실적만 사용한다 (isConsensus === 'Y' 제외).
+ */
+function parseQuarter(json) {
+  const info = json?.financeInfo
+  if (!info || !Array.isArray(info.trTitleList) || !Array.isArray(info.rowList)) return null
+
+  const actual = info.trTitleList.filter((t) => t.isConsensus !== 'Y')
+  if (!actual.length) return null
+
+  const keys = actual.map((t) => t.key) // 예: ['202506','202509','202512','202603','202606']
+  const labels = keys.map((k) =>
+    k.length === 6 ? `${k.slice(0, 4)}.${k.slice(4)}` : k
+  )
+
+  const byTitle = new Map(info.rowList.map((r) => [r.title, r.columns || {}]))
+  const seriesOf = (title) => {
+    const cols = byTitle.get(title)
+    if (!cols) return keys.map(() => null)
+    return keys.map((k) => num(cols[k]?.value))
+  }
+
+  const revenue = seriesOf('매출액')
+  const opIncome = seriesOf('영업이익')
+  const netIncome = seriesOf('당기순이익')
+  const opMargin = seriesOf('영업이익률')
+
+  const last = keys.length - 1
+  const lastKey = keys[last]
+
+  // 전년 동기 키: 연도만 -1 (202606 → 202506)
+  const yoyKey = String(Number(lastKey.slice(0, 4)) - 1) + lastKey.slice(4)
+  const idxByKey = new Map(keys.map((k, i) => [k, i]))
+  const yoyIdx = idxByKey.has(yoyKey) ? idxByKey.get(yoyKey) : -1
+
+  const growth = (cur, prev) => {
+    if (cur == null || prev == null || prev === 0) return null
+    return Number((((cur - prev) / Math.abs(prev)) * 100).toFixed(2))
+  }
+
+  // 직전 분기 대비 (QoQ)
+  const qQoQ = last >= 1 ? growth(revenue[last], revenue[last - 1]) : null
+  const qOpQoQ = last >= 1 ? growth(opIncome[last], opIncome[last - 1]) : null
+
+  // 전년 동기 대비 (YoY)
+  const qYoY = yoyIdx >= 0 ? growth(revenue[last], revenue[yoyIdx]) : null
+  const qOpYoY = yoyIdx >= 0 ? growth(opIncome[last], opIncome[yoyIdx]) : null
+
+  // 영업이익 흑자 연속 분기수 (최근부터 역산)
+  let opPositiveStreak = 0
+  for (let i = last; i >= 0; i--) {
+    if (opIncome[i] != null && opIncome[i] > 0) opPositiveStreak++
+    else break
+  }
+
+  // 영업이익 연속 증가 분기수 (최근부터 역산, 2분기 이상 비교)
+  let opImproveStreak = 0
+  for (let i = last; i >= 1; i--) {
+    if (opIncome[i] != null && opIncome[i - 1] != null && opIncome[i] > opIncome[i - 1]) {
+      opImproveStreak++
+    } else break
+  }
+
+  return {
+    quarters: labels,
+    qRevenueSeries: revenue,
+    qOpIncomeSeries: opIncome,
+    qNetIncomeSeries: netIncome,
+    qOpMarginSeries: opMargin,
+
+    quarterLabel: labels[last] || null,
+    qRevenue: revenue[last] ?? null,
+    qOpIncome: opIncome[last] ?? null,
+    qNetIncome: netIncome[last] ?? null,
+    qOpMargin: opMargin[last] ?? null,
+
+    qQoQ,
+    qYoY,
+    qOpQoQ,
+    qOpYoY,
+    opPositiveStreak,
+    opImproveStreak,
+  }
+}
+
 async function fetchOne(stock) {
   const code = stock.itemCode
-  const [finRes, intRes] = await Promise.all([
+  const [finRes, qtrRes, intRes] = await Promise.all([
     getJSON(`https://m.stock.naver.com/api/stock/${code}/finance/annual`).catch(() => null),
+    getJSON(`https://m.stock.naver.com/api/stock/${code}/finance/quarter`).catch(() => null),
     getJSON(`https://m.stock.naver.com/api/stock/${code}/integration`).catch(() => null),
   ])
   const fin = finRes ? parseFinance(finRes) : null
+  const qtr = qtrRes ? parseQuarter(qtrRes) : null
   const cur = intRes ? parseIntegration(intRes) : {}
-  return { fin, cur }
+  return { fin, qtr, cur }
 }
 
 /* ------------------------------------------------------------------ */
@@ -332,6 +431,7 @@ async function main() {
   const records = targets.map((s, i) => {
     const d = detail[i] || {}
     const fin = d.fin || {}
+    const qtr = d.qtr || {}
     const cur = d.cur || {}
     const price = num(s.closePrice)
     const marketCap = num(s.marketValue) // 억원
@@ -392,14 +492,46 @@ async function main() {
       divYield: divYield ?? null,
       foreignRate: cur.foreignRate ?? null,
       pos52: pos52 ?? null,
+
+      // ── 분기 실적 (단일분기 기준, 확정 실적만) ──
+      quarterLabel: qtr?.quarterLabel ?? null,
+      qRevenue: qtr?.qRevenue ?? null,
+      qOpIncome: qtr?.qOpIncome ?? null,
+      qNetIncome: qtr?.qNetIncome ?? null,
+      qOpMargin: qtr?.qOpMargin ?? null,
+      qQoQ: qtr?.qQoQ ?? null,
+      qYoY: qtr?.qYoY ?? null,
+      qOpQoQ: qtr?.qOpQoQ ?? null,
+      qOpYoY: qtr?.qOpYoY ?? null,
+      opPositiveStreak: qtr?.opPositiveStreak ?? null,
+      opImproveStreak: qtr?.opImproveStreak ?? null,
+      quarters: qtr?.quarters ?? null,
+      qRevenueSeries: qtr?.qRevenueSeries ?? null,
+      qOpIncomeSeries: qtr?.qOpIncomeSeries ?? null,
+      qNetIncomeSeries: qtr?.qNetIncomeSeries ?? null,
+      qOpMarginSeries: qtr?.qOpMarginSeries ?? null,
     }
   })
 
   // 유효성 요약
   const filled = (k) => records.filter((r) => r[k] != null).length
   console.error('■ 5) 필드 채움률')
-  for (const k of ['marketCap', 'revenue', 'opMargin', 'debtRatio', 'per', 'pbr', 'roe', 'divYield']) {
-    console.error(`  ${k.padEnd(12)} ${filled(k)}/${records.length}`)
+  for (const k of [
+    'marketCap',
+    'revenue',
+    'opMargin',
+    'debtRatio',
+    'per',
+    'pbr',
+    'roe',
+    'divYield',
+    'qRevenue',
+    'qYoY',
+    'qOpMargin',
+    'qQoQ',
+    'opPositiveStreak',
+  ]) {
+    console.error(`  ${k.padEnd(16)} ${filled(k)}/${records.length}`)
   }
 
   // 정렬: 시총 내림차순

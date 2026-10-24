@@ -164,6 +164,13 @@
     put('divYieldMin', 'f-div-min');
     put('revenueGrowthMin', 'f-growth-min');
 
+    // ── 분기 실적 조건 ──
+    put('qYoYMin', 'f-qyoy-min');
+    put('qOpYoYMin', 'f-qopyoy-min');
+    put('qOpMarginMin', 'f-qopmargin-min');
+    put('qQoQMin', 'f-qqoq-min');
+    put('opStreakMin', 'f-opstreak-min');
+
     var ind = $('f-industry');
     if (ind && ind.value) p.set('industry', ind.value);
 
@@ -213,7 +220,7 @@
         if (reqId !== activeRequest) return;
         els.summary.textContent = '조회 실패';
         els.body.innerHTML =
-          '<tr><td colspan="14"><div class="empty-state">' +
+          '<tr><td colspan="16"><div class="empty-state">' +
           '<div class="empty-ico">⚠</div><h3>데이터를 불러오지 못했습니다</h3>' +
           '<p>' + esc(err.message) + '</p></div></td></tr>';
       });
@@ -241,6 +248,13 @@
     var txt = data.total
       ? '<strong>' + fmt(data.total) + '</strong>개 종목 · ' + fmt(start) + '–' + fmt(end) + ' 표시'
       : '조건에 맞는 종목이 없습니다';
+
+    // 분기 요약 (데이터가 있을 때만)
+    var s = data.stats;
+    if (s && s.medianQYoY != null) {
+      txt += '<span class="summary-q">분기 매출 YoY 중앙값 <strong>' +
+        fmtSigned(s.medianQYoY, 1) + '%</strong></span>';
+    }
     els.summary.innerHTML = txt;
   }
 
@@ -257,7 +271,7 @@
 
     if (!rows.length) {
       els.body.innerHTML =
-        '<tr><td colspan="14"><div class="empty-state">' +
+        '<tr><td colspan="16"><div class="empty-state">' +
         '<div class="empty-ico">' + (state.favFilter ? '★' : '🔍') + '</div>' +
         '<h3>' + (state.favFilter ? '이 페이지에 즐겨찾기 종목이 없습니다' : '조건에 맞는 종목이 없습니다') + '</h3>' +
         '<p>' + (state.favFilter ? '다른 페이지를 확인하거나 즐겨찾기를 추가해 보세요.' : '조건을 완화하거나 초기화 버튼을 눌러보세요.') + '</p>' +
@@ -326,6 +340,8 @@
       '<td class="num">' + badge('roe', r.roe, '%', 1) + '</td>' +
       '<td class="num">' + badge('divYield', r.divYield, '%', 2) + '</td>' +
       '<td class="num">' + badge('revenueCagr', r.revenueCagr, '%', 1) + '</td>' +
+      '<td class="num col-q">' + qBadge(r.qYoY, '%') + '</td>' +
+      '<td class="num col-q">' + badge('opMargin', r.qOpMargin, '%', 1) + '</td>' +
       '<td class="col-ind" title="' + esc(r.industry || '') + '">' + esc(r.industry || '–') + '</td>' +
       '<td class="col-edit">' +
       '<button type="button" class="edit-btn" data-edit="' + esc(r.code) + '" ' +
@@ -333,6 +349,14 @@
       '</td>' +
       '</tr>'
     );
+  }
+
+  /** YoY/QoQ 처럼 부호가 의미 있는 증감률 전용 배지 */
+  function qBadge(v, suffix) {
+    if (v == null) return '<span class="muted">–</span>';
+    var cls = v > 0 ? 'metric-good' : v < 0 ? 'metric-bad' : '';
+    var txt = fmtSigned(v, 1) + suffix;
+    return cls ? '<span class="metric-badge ' + cls + '">' + txt + '</span>' : txt;
   }
 
   /* ---------------- 페이지네이션 ---------------- */
@@ -459,6 +483,8 @@
     html += finRow('당기순이익', base.netIncome, '억');
     html += '</tbody></table>';
 
+    html += quarterSection(base);
+
     html += '<div class="detail-section-title">실시간 지표 <span class="hint">네이버금융</span></div>';
     html += '<div id="dt-live"><div class="skeleton-loading" style="padding:20px 0">불러오는 중…</div></div>';
 
@@ -482,6 +508,63 @@
   function finRow(label, v, unit) {
     var val = v == null ? '–' : fmt(v) + unit;
     return '<tr><td>' + esc(label) + '</td><td>' + val + '</td></tr>';
+  }
+
+  /**
+   * 분기 실적 섹션.
+   * 스냅샷의 분기 값은 단일분기(비누적) 확정 실적이다.
+   */
+  function quarterSection(base) {
+    var qs = base.quarters;
+    if (!qs || !qs.length) {
+      return '<div class="detail-section-title">분기 실적</div>' +
+        '<p class="muted" style="font-size:12px">분기 데이터가 없습니다.</p>';
+    }
+
+    var html = '';
+    html += '<div class="detail-section-title">분기 실적 <span class="hint">단일분기 · ' +
+      esc(qs[qs.length - 1] || '') + ' 기준</span></div>';
+
+    // 요약 배지들
+    html += '<div class="q-summary">';
+    html += qPill('매출 YoY', base.qYoY, '%');
+    html += qPill('영업이익 YoY', base.qOpYoY, '%');
+    html += qPill('매출 QoQ', base.qQoQ, '%');
+    html += qPill('영업이익 QoQ', base.qOpQoQ, '%');
+    html += '<div class="q-pill"><span class="k">흑자 연속</span><span class="v">' +
+      (base.opPositiveStreak == null ? '–' : base.opPositiveStreak + '분기') + '</span></div>';
+    html += '</div>';
+
+    html += '<div style="overflow-x:auto"><table class="mini-fin q-table"><thead><tr><th>항목</th>';
+    qs.forEach(function (q) {
+      html += '<th>' + esc(String(q)) + '</th>';
+    });
+    html += '</tr></thead><tbody>';
+    html += qSeriesRow('매출액(억)', base.qRevenueSeries);
+    html += qSeriesRow('영업이익(억)', base.qOpIncomeSeries);
+    html += qSeriesRow('당기순이익(억)', base.qNetIncomeSeries);
+    html += qSeriesRow('영업이익률(%)', base.qOpMarginSeries);
+    html += '</tbody></table></div>';
+    return html;
+  }
+
+  function qPill(label, v, suffix) {
+    var cls = v == null ? '' : v > 0 ? ' up' : v < 0 ? ' down' : '';
+    var txt = v == null ? '–' : fmtSigned(v, 1) + suffix;
+    return '<div class="q-pill"><span class="k">' + esc(label) + '</span>' +
+      '<span class="v' + cls + '">' + txt + '</span></div>';
+  }
+
+  function qSeriesRow(label, arr) {
+    var out = '<tr><td>' + esc(label) + '</td>';
+    if (!arr || !arr.length) {
+      out += '<td>–</td>';
+      return out + '</tr>';
+    }
+    arr.forEach(function (v) {
+      out += '<td>' + (v == null ? '–' : fmt(v, 1)) + '</td>';
+    });
+    return out + '</tr>';
   }
 
   function memoHTML(code) {
@@ -689,8 +772,7 @@
   }
 
   /* ---------------- 프리셋 ---------------- */
-  var PRESETS = {
-    value: {
+  var PRESETS = {    value: {
       'f-marketcap-min': '1000',
       'f-per-min': '0',
       'f-per-max': '10',
@@ -756,6 +838,14 @@
       'f-marketcap-max': '',
     },
   };
+
+  /** 칩 값을 입력칸에 토글 적용 (같은 값을 다시 누르면 해제) */
+  function toggleChipValue(id, value) {
+    var el = $(id);
+    if (el) el.value = el.value === value ? '' : value;
+    state.page = 1;
+    load();
+  }
 
   function applyPreset(name) {
     var p = PRESETS[name];
@@ -830,6 +920,16 @@
           '배당수익률(%)',
           '매출3년CAGR(%)',
           '매출액(억원)',
+          '분기기준',
+          '분기매출(억원)',
+          '분기영업이익(억원)',
+          '분기순이익(억원)',
+          '분기영업이익률(%)',
+          '분기매출YoY(%)',
+          '분기영업이익YoY(%)',
+          '분기매출QoQ(%)',
+          '분기영업이익QoQ(%)',
+          '영업이익흑자연속(분기)',
           '즐겨찾기',
           '메모',
           '태그',
@@ -852,6 +952,16 @@
             r.divYield,
             r.revenueCagr,
             r.revenue,
+            r.quarterLabel,
+            r.qRevenue,
+            r.qOpIncome,
+            r.qNetIncome,
+            r.qOpMargin,
+            r.qYoY,
+            r.qOpYoY,
+            r.qQoQ,
+            r.qOpQoQ,
+            r.opPositiveStreak,
             isFav(r.code) ? 'Y' : '',
             m.memo || '',
             m.tags || '',
@@ -1008,6 +1118,28 @@
         if (pMin && !pMin.value && pEl && pEl.value) pMin.value = '0';
         state.page = 1;
         load();
+        return;
+      }
+
+      // 분기 매출 YoY 칩
+      var qyoyChip = t.closest('[data-qyoy]');
+      if (qyoyChip) {
+        toggleChipValue('f-qyoy-min', qyoyChip.getAttribute('data-qyoy'));
+        return;
+      }
+
+      // 분기 영업이익 YoY 칩
+      var qopChip = t.closest('[data-qopyoy]');
+      if (qopChip) {
+        toggleChipValue('f-qopyoy-min', qopChip.getAttribute('data-qopyoy'));
+        return;
+      }
+
+      // 영업이익 흑자 연속 분기 칩
+      var streakChip = t.closest('[data-streak]');
+      if (streakChip) {
+        toggleChipValue('f-opstreak-min', streakChip.getAttribute('data-streak'));
+        return;
       }
     });
 

@@ -51,6 +51,14 @@ const SORT_KEYS: SortKey[] = [
   'changeRate',
   'price',
   'name',
+  // 분기 실적 정렬
+  'qRevenue',
+  'qOpIncome',
+  'qOpMargin',
+  'qYoY',
+  'qQoQ',
+  'qOpYoY',
+  'opPositiveStreak',
 ]
 
 const UA =

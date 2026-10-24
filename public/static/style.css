@@ -729,6 +729,102 @@ td.num {
   text-align: center;
 }
 
+/* 분기 실적 컬럼 */
+.col-q {
+  background: #fbfcff;
+}
+
+#results-table thead th.col-q {
+  background: #f4f7fe;
+  color: var(--brand);
+}
+
+#results-table tbody tr:hover td.col-q {
+  background: #f4f8ff;
+}
+
+/* 분기 요약 배지 (상세 드로어) */
+.q-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.q-pill {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 7px 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.q-pill .k {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.q-pill .v {
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.2px;
+}
+
+.q-pill .v.up {
+  color: var(--up);
+}
+
+.q-pill .v.down {
+  color: var(--down);
+}
+
+/* 분기 시계열 테이블은 열이 많으므로 살짝 조밀하게 */
+table.mini-fin.q-table th,
+table.mini-fin.q-table td {
+  padding: 5px 6px;
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+/* 필터 안내문 */
+.filter-hint {
+  font-size: 10.5px;
+  line-height: 1.55;
+  color: var(--text-3);
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 7px 9px;
+  margin: 2px 0 4px;
+}
+
+.filter-hint strong {
+  color: var(--text-2);
+}
+
+/* 결과 요약줄 안의 분기 지표 */
+.summary-q {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--brand-soft);
+  border: 1px solid #cfe0ff;
+  color: var(--brand);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.summary-q strong {
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
 /* 즐겨찾기 별 버튼 */
 .fav-btn {
   background: none;

@@ -29,6 +29,26 @@ export interface Stock {
   divYield: number | null // %
   foreignRate: number | null // %
   pos52: number | null // 0~100
+
+  // ── 분기 실적 (단일분기 기준, 확정 실적만) ──
+  quarterLabel: string | null // 예: "2026.06"
+  qRevenue: number | null // 분기 매출액 (억원)
+  qOpIncome: number | null // 분기 영업이익 (억원)
+  qNetIncome: number | null // 분기 당기순이익 (억원)
+  qOpMargin: number | null // 분기 영업이익률 (%)
+  qQoQ: number | null // 분기 매출 QoQ (%)
+  qYoY: number | null // 분기 매출 YoY (%)
+  qOpQoQ: number | null // 분기 영업이익 QoQ (%)
+  qOpYoY: number | null // 분기 영업이익 YoY (%)
+  opPositiveStreak: number | null // 영업이익 흑자 연속 분기수
+  opImproveStreak: number | null // 영업이익 연속 증가 분기수
+
+  // 시계열 (표시용)
+  quarters: string[] | null
+  qRevenueSeries: (number | null)[] | null
+  qOpIncomeSeries: (number | null)[] | null
+  qNetIncomeSeries: (number | null)[] | null
+  qOpMarginSeries: (number | null)[] | null
 }
 
 export interface Filters {
@@ -48,6 +68,13 @@ export interface Filters {
   excludePreferred?: boolean
   /** 코드 화이트리스트 (즐겨찾기만 보기 등). 비어있으면 미적용 */
   codes?: string[] | null
+
+  // ── 분기 실적 조건 ──
+  qYoYMin?: number | null // 분기 매출 YoY 하한 (%)
+  qOpYoYMin?: number | null // 분기 영업이익 YoY 하한 (%)
+  qOpMarginMin?: number | null // 분기 영업이익률 하한 (%)
+  qQoQMin?: number | null // 분기 매출 QoQ 하한 (%)
+  opStreakMin?: number | null // 영업이익 흑자 연속 분기수 하한
 }
 
 export type SortKey =
@@ -63,6 +90,14 @@ export type SortKey =
   | 'changeRate'
   | 'price'
   | 'name'
+  // 분기 실적 정렬
+  | 'qRevenue'
+  | 'qOpIncome'
+  | 'qOpMargin'
+  | 'qYoY'
+  | 'qQoQ'
+  | 'qOpYoY'
+  | 'opPositiveStreak'
 
 /**
  * 조건 통과 여부.
@@ -143,6 +178,24 @@ export function passes(s: Stock, f: Filters): boolean {
     if (s.revenueCagr == null || s.revenueCagr < f.revenueGrowthMin) return false
   }
 
+  // ── 분기 실적 조건 ──
+  // 최소값 조건은 null(데이터 없음)을 통과시키지 않는다. 스크리너가 거짓말하면 안 되므로.
+  if (f.qYoYMin != null) {
+    if (s.qYoY == null || s.qYoY < f.qYoYMin) return false
+  }
+  if (f.qOpYoYMin != null) {
+    if (s.qOpYoY == null || s.qOpYoY < f.qOpYoYMin) return false
+  }
+  if (f.qOpMarginMin != null) {
+    if (s.qOpMargin == null || s.qOpMargin < f.qOpMarginMin) return false
+  }
+  if (f.qQoQMin != null) {
+    if (s.qQoQ == null || s.qQoQ < f.qQoQMin) return false
+  }
+  if (f.opStreakMin != null) {
+    if (s.opPositiveStreak == null || s.opPositiveStreak < f.opStreakMin) return false
+  }
+
   return true
 }
 
@@ -189,6 +242,11 @@ export interface Stats {
   medianOpMargin: number | null
   avgDivYield: number | null
   totalMarketCap: number | null
+  // 분기 실적 요약
+  medianQYoY: number | null
+  medianQOpYoY: number | null
+  medianQOpMargin: number | null
+  qCount: number // 분기 데이터가 있는 종목 수
 }
 
 export function computeStats(list: Stock[]): Stats {
@@ -206,6 +264,10 @@ export function computeStats(list: Stock[]): Stats {
       pick('marketCap').reduce((a, b) => a + b, 0),
       0
     ),
+    medianQYoY: round(median(pick('qYoY'))),
+    medianQOpYoY: round(median(pick('qOpYoY'))),
+    medianQOpMargin: round(median(pick('qOpMargin'))),
+    qCount: pick('qRevenue').length,
   }
 }
 
@@ -242,6 +304,14 @@ export function parseFilters(sp: URLSearchParams): Filters {
     pbrMax: n('pbrMax'),
     divYieldMin: n('divYieldMin'),
     revenueGrowthMin: n('revenueGrowthMin'),
+
+    // ── 분기 실적 조건 ──
+    qYoYMin: n('qYoYMin'),
+    qOpYoYMin: n('qOpYoYMin'),
+    qOpMarginMin: n('qOpMarginMin'),
+    qQoQMin: n('qQoQMin'),
+    opStreakMin: n('opStreakMin'),
+
     industry: sp.get('industry') || null,
     excludePreferred: sp.get('excludePreferred') === '1',
   }
