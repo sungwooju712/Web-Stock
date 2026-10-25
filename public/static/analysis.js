@@ -40,6 +40,9 @@
   var DATES = []; // 거래일 축 (YYYY-MM-DD)
   var NAMES = null; // [code, name][] 자동완성 인덱스
   var namesLoading = false;
+  // 앱 버전 — /api/prices 응답에서 받는다 (정적 파일이라 src/version.ts 를 직접 못 읽음)
+  // 보고서 HTML·엑셀 파일명에 각인해 "어느 버전에서 만든 자료인지" 추적 가능하게 한다.
+  var APP_VER = '';
 
   /**
    * 화면 상태.
@@ -296,6 +299,7 @@
       .then(function (res) {
         BASE = res[0];
         DAILY = res[1];
+        APP_VER = (BASE && BASE.version) || '';
         DATES = (DAILY.rows || []).map(function (r) {
           return r.date;
         });
@@ -1189,6 +1193,9 @@
       names.map(esc).join(' · ') +
       '</p>';
     html += '<p class="sub">출처: ' + esc(meta.source) + ' · 집계 ' + esc(meta.collectedAt) + '</p>';
+    if (APP_VER) {
+      html += '<p class="sub">코스피 종목 분석 v' + esc(APP_VER) + '</p>';
+    }
     html += '<p class="note">※ 참고용 자료이며 투자 권유가 아닙니다.</p>';
 
     /* 1. 카드 */
@@ -1332,6 +1339,7 @@
     html +=
       '<div class="foot">코스피 종목 분석 · made by 최미경 · ' +
       esc(meta.source) +
+      (APP_VER ? ' · v' + esc(APP_VER) : '') +
       '</div>';
     html += '</body></html>';
 
@@ -1447,7 +1455,7 @@
           })
           .join(' · '),
     ]);
-    s1.push(['출처: ' + meta.source + '  |  참고용 (투자 권유 아님)  |  made by 최미경']);
+    s1.push(['출처: ' + meta.source + '  |  참고용 (투자 권유 아님)  |  made by 최미경' + (APP_VER ? '  |  v' + APP_VER : '')]);
     s1.push([]);
     s1.push(['주요 지표']);
     s1.push(
@@ -1507,7 +1515,7 @@
     var s2 = [];
     s2.push(['코스피 종목 분석 전체 보고서']);
     s2.push(['상세 데이터 버전  |  기준일: ' + (meta.end || '')]);
-    s2.push(['출처: ' + meta.source]);
+    s2.push(['출처: ' + meta.source + (APP_VER ? ' | v' + APP_VER : '')]);
     s2.push([]);
     s2.push(['그래프 1: 일별 종가 추이 (전체 기간)']);
     s2.push(['날짜'].concat(headers));
@@ -1539,7 +1547,7 @@
     /* ── 시트 3: 일일종가 ── */
     var s3 = [];
     s3.push(['코스피 종목 분석 일일 종가 (' + (meta.start || '') + ' ~ ' + (meta.end || '') + ')']);
-    s3.push(['출처: ' + meta.source + ' | 단위: 원(KRW) | 데이터 기준일: ' + (meta.end || '')]);
+    s3.push(['출처: ' + meta.source + ' | 단위: 원(KRW) | 데이터 기준일: ' + (meta.end || '') + (APP_VER ? ' | v' + APP_VER : '')]);
     s3.push(['날짜'].concat(headers));
     DATES.forEach(function (d, i) {
       s3.push(
@@ -1587,7 +1595,11 @@
       '연간데이터'
     );
 
-    var fname = '코스피_종목분석_' + (meta.end || '').replace(/-/g, '') + '.xlsx';
+    var fname =
+      '코스피_종목분석_' +
+      (meta.end || '').replace(/-/g, '') +
+      (APP_VER ? '_v' + APP_VER : '') +
+      '.xlsx';
     XLSX.writeFile(wb, fname);
     toast('엑셀 파일을 내려받았습니다. (5개 시트 · ' + stocks.length + '종목)');
   }

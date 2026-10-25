@@ -7,6 +7,46 @@
 - **기술 스택**: Hono + TypeScript + Vite → Cloudflare Pages (Workers)
 - **프론트엔드**: 바닐라 JS (프레임워크 없음), CDN 미사용 · 자체 CSS
 - **만든 사람**: 최미경 (기획 · 디자인 · 개발)
+- **현재 버전**: **v1.0.0** (2026-10-24 릴리스)
+
+---
+
+## 0. 버전 정책
+
+지금까지 완성된 기능을 **v1.0.0으로 동결**하고, 이후 추가되는 자료는 **v1.1.0**부터 쌓습니다.
+
+| 규칙 | 의미 | 예시 |
+|---|---|---|
+| `v1.0.x` | 기존 기능의 **버그 수정**만 | 표 오탈자, 색상 오류 |
+| `v1.1.0` | **기능 추가** | 새 지표, 새 다운로드 형식, 새 화면 |
+| `v2.0.0` | 기존 동작이 **깨지는** 구조 변경 | API 응답 형식 변경 |
+
+**버전을 확인하는 3가지 방법**
+
+1. **화면 푸터** — 우측 하단 `v1.0.0` 배지
+2. **헬스체크 API** — `GET /api/health` → `{"ok":true,"version":"1.0.0",...}`
+3. **소스** — `src/version.ts` 의 `APP_VERSION`
+
+**단일 출처 원칙**: 버전 값은 `src/version.ts` 한 곳에서만 관리합니다.
+`package.json` 의 `version` 과 반드시 일치해야 하며, 불일치 시 빌드가 실패합니다
+(`npm run version:check` → `prebuild` 훅에 연결됨).
+
+**버전 올리는 절차**
+
+```bash
+# 1. src/version.ts 의 APP_VERSION 수정
+# 2. package.json 의 version 수정 (같은 값)
+# 3. CHANGELOG.md 에 항목 추가
+npm run version:check      # 일치 확인
+npm run build              # prebuild 가 자동 재검사
+node scripts/verify-dom.mjs  # 32개 DOM 검증
+git tag v1.1.0 && git push origin v1.1.0
+gsk hosted deploy
+```
+
+**자료(보고서·엑셀) 버전 각인**: 다운로드되는 보고서 HTML과 엑셀에는 생성 시점의 버전이
+찍힙니다. 엑셀 파일명은 `코스피_종목분석_YYYYMMDD_v1.0.0.xlsx` 형식입니다.
+→ 나중에 "이 자료가 어느 버전에서 나온 건지" 추적할 수 있습니다.
 
 ---
 

@@ -12,6 +12,7 @@ import {
   type SortKey,
 } from './lib/screen'
 import { Page } from './page'
+import { APP_VERSION, APP_RELEASE_DATE } from './version'
 
 type Bindings = {}
 
@@ -79,6 +80,9 @@ app.get('/api/meta', (c) => {
   return c.json({
     ...DATA.meta,
     sortKeys: SORT_KEYS,
+    // 앱 버전 — 화면·보고서와 같은 단일 출처(src/version.ts)
+    version: APP_VERSION,
+    releaseDate: APP_RELEASE_DATE,
   })
 })
 
@@ -240,9 +244,15 @@ app.get('/api/stock/:code/live', async (c) => {
   return c.json(payload)
 })
 
-/** 헬스체크 */
+/** 헬스체크 — version 필드로 배포된 버전을 즉시 확인할 수 있다 */
 app.get('/api/health', (c) =>
-  c.json({ ok: true, stocks: DATA.meta.stockCount, collectedAt: DATA.meta.collectedAt })
+  c.json({
+    ok: true,
+    version: APP_VERSION,
+    releaseDate: APP_RELEASE_DATE,
+    stocks: DATA.meta.stockCount,
+    collectedAt: DATA.meta.collectedAt,
+  })
 )
 
 /* ------------------------------------------------------------------ */
@@ -328,6 +338,9 @@ app.get('/api/prices', (c) => {
     annual,
     // 종목 추가/삭제 시 클라이언트가 기간 최고·최저를 그대로 재사용한다
     period,
+    // 보고서 HTML·엑셀 파일에 버전을 각인하기 위해 함께 내려보낸다
+    version: APP_VERSION,
+    releaseDate: APP_RELEASE_DATE,
   })
 })
 

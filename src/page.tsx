@@ -1,5 +1,6 @@
 import type { FC } from 'hono/jsx'
 import { Analysis } from './analysis'
+import { APP_VERSION_LABEL, APP_RELEASE_DATE } from './version'
 
 interface Meta {
   source: string
@@ -476,6 +477,15 @@ export const Page: FC<{ meta: Meta; prices: PricesMeta }> = ({ meta, prices }) =
               스냅샷 수집 {collectedText} · 종목 {meta.stockCount}개 · 업종 {meta.industries.length}개
               <span class="sep">|</span>
               <span class="footer-sign">코스피 종목 분석 · made by <strong>최미경</strong></span>
+              <span class="sep">|</span>
+              {/* 버전 배지 — src/version.ts 단일 출처. 배포 여부를 3초 만에 확인하는 용도 */}
+              <span
+                class="app-version"
+                title={`릴리스 ${APP_RELEASE_DATE}`}
+                data-version={APP_VERSION_LABEL}
+              >
+                {APP_VERSION_LABEL}
+              </span>
             </p>
           </footer>
         </main>

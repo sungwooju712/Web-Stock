@@ -1,14 +1,18 @@
 {
   "name": "kospi-screener",
+  "version": "1.0.0",
   "description": "코스피 종목 분석 — 코스피 전 종목 조건검색 + 원하는 종목 종가 분석/보고서/엑셀",
   "license": "MIT",
   "author": "최미경 (Choi Mi-kyung)",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/check-version.mjs",
     "build": "vite build",
     "preview": "wrangler pages dev dist",
     "deploy": "npm run build && wrangler pages deploy dist",
+    "version:check": "node scripts/check-version.mjs",
+    "test:dom": "node scripts/verify-dom.mjs",
     "snapshot": "node scripts/fetch-snapshot.mjs",
     "snapshot:test": "node scripts/fetch-snapshot.mjs --limit 30",
     "prices": "node scripts/fetch-prices.mjs",
