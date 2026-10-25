@@ -67,10 +67,54 @@
 
 ## 버전 올리는 방법 (개발자용)
 
-1. `src/version.ts` 의 `APP_VERSION` 수정
-2. `package.json` 의 `version` 수정 (같은 값)
-3. 이 파일 위쪽에 새 항목 추가
-4. `npm run version:check` 로 일치 확인
-5. `npm run build` → `node scripts/verify-dom.mjs`
-6. 커밋 후 태그: `git tag v1.1.0 && git push origin v1.1.0`
-7. 배포: `gsk hosted deploy`
+> ⚠️ **수동 5단계에는 구멍이 3개 있습니다** (2026-10-25 실제 재현 결과)
+> ① `git commit` 없이 `git tag` 만 붙이면 → **태그가 옛 코드를 가리킴**
+>    (`git show v1.1.0-demo:src/version.ts` → `APP_VERSION = '1.0.0'` 로 확인됨)
+> ② `git push origin vX.Y.Z` 를 빼먹으면 → 태그가 **로컬에만** 남음
+> ③ `CHANGELOG.md` 를 안 써도 → **아무도 막지 않음**
+>
+> 그래서 **`scripts/release.mjs`** 를 만들었습니다. 이걸 쓰세요.
+
+### ✅ 권장 — 한 줄 릴리스
+
+```bash
+# 먼저 세 파일 수정
+#   1) src/version.ts   APP_VERSION = '1.1.0'
+#   2) package.json     "version": "1.1.0"
+#   3) CHANGELOG.md     ## [1.1.0] — YYYY-MM-DD  섹션 추가
+
+npm run release            # 검사만 (dry-run)
+npm run release:commit     # 검사 + 빌드 + DOM 32개 + 커밋 + 태그
+npm run release:push       # 위 전부 + 원격 push
+```
+
+`release.mjs` 가 자동으로 막는 것:
+
+| # | 검사 | 실패 시 |
+|---|---|---|
+| 1 | `version.ts` ↔ `package.json` 일치 + SemVer 형식 | 빌드조차 안 함 |
+| 2 | `CHANGELOG.md` 에 `[해당 버전]` 섹션 존재 | 중단 |
+| 3 | 태그 중복 (`vX.Y.Z` 이미 존재?) | 중단 |
+| 4 | 작업 트리에 변경사항 있는지 | 중단 |
+| 5 | 빌드 (prebuild 가 1번 재검사) | 중단 |
+| 6 | DOM 회귀 테스트 32개 | 중단 |
+| 7 | 커밋 후 `git show HEAD:src/version.ts` 로 실제 버전 재확인 | **태그 안 붙임** |
+| 8 | 태그 생성 후 `git show vX.Y.Z:src/version.ts` 재확인 | 실패 처리 |
+| 9 | `--push` 없으면 "태그가 로컬에만 있음" 경고 | 경고 |
+
+### 수동으로 할 경우 (스크립트 없이)
+
+```bash
+1. src/version.ts     APP_VERSION 수정
+2. package.json       version 수정 (같은 값)
+3. CHANGELOG.md       새 항목 추가
+4. npm run version:check          # 일치 확인
+5. npm run build                  # prebuild 재검사
+6. node scripts/verify-dom.mjs    # 32개 검증
+7. git add -A && git commit -m "chore(release): v1.1.0"   # ← 이 줄 필수
+8. git tag -a v1.1.0 -m "v1.1.0"
+9. git show v1.1.0:src/version.ts | grep APP_VERSION     # ← 태그 대상 검증
+10. git push origin HEAD && git push origin v1.1.0       # ← 태그 push 필수
+11. gsk hosted deploy            # 배너에서 승인 (10분 내)
+12. curl <URL>/api/health        # {"version":"1.1.0"} 확인
+```
