@@ -127,13 +127,63 @@ if (failed > 0) {
 
 /* ── 5. 빌드 ─────────────────────────────────────────────────── */
 step(5, '빌드 (prebuild 가 버전 일치 재검사)')
+// dist 를 지우고 빌드한다. 이유: 이전 빌드 산출물이 그대로 남아 있으면
+// 소스는 1.0.0 인데 dist 에는 1.1.0 이 박힌 채로 배포되는 사고가 난다.
+// (2026-10-25 실제로 발생: 시뮬레이션 빌드 잔재가 dist 에 남아 있었음)
 try {
+  if (existsSync(join(ROOT, 'dist'))) {
+    run('rm -rf dist', { quiet: true })
+    ok('이전 dist 삭제 (잔재 방지)')
+  }
   run('npm run build')
   ok('빌드 성공')
 } catch {
   bad('빌드 실패')
   process.exit(1)
 }
+
+/* ── 5b. dist 에 박힌 버전이 기대값인지 확인 (구멍 ④) ────────── */
+step('5b', 'dist 산출물 버전 검증')
+const workerPath = join(ROOT, 'dist/_worker.js')
+if (!existsSync(workerPath)) {
+  bad('dist/_worker.js 가 없음', '빌드가 산출물을 만들지 못했습니다')
+  process.exit(1)
+}
+const workerSrc = readFileSync(workerPath, 'utf8')
+
+// dist 안에서 x.y.z 형태 후보를 모두 모은다.
+const found = new Set(workerSrc.match(/\b\d+\.\d+\.\d+\b/g) || [])
+
+// ⚠️ 블랙리스트 방식은 실패했다 (2026-10-25 실측).
+//   Chrome UA 의 "120.0.0.0" 이 잡혀 정상 빌드를 "잔재 있음"으로 오판했다.
+//   버전처럼 보이는 문자열은 라이브러리·UA·CDN URL 어디에나 있다.
+//
+// 그래서 판정 기준을 "릴리스된 앱 버전"으로 좁힌다:
+//   git tag (= 실제로 릴리스한 적 있는 우리 버전) 목록과 대조해서,
+//   dist 에 이번 버전이 아닌 '다른 릴리스 버전'이 박혀 있으면 잔재로 본다.
+//   → 120.0.0 은 태그가 아니므로 애초에 후보가 되지 않는다.
+const taggedVersions = new Set(
+  capture('git tag -l')
+    .split('\n')
+    .map((t) => t.replace(/^v/, '').trim())
+    .filter((t) => /^\d+\.\d+\.\d+$/.test(t))
+)
+
+const stale = [...found].filter((v) => v !== VERSION && taggedVersions.has(v))
+
+if (!found.has(VERSION)) {
+  bad(`dist 에 ${VERSION} 이 없음`, '빌드 산출물이 오래됐습니다. dist 를 지우고 재빌드하세요')
+  process.exit(1)
+}
+if (stale.length) {
+  bad(
+    `dist 에 이전 릴리스 버전이 남아 있음: ${stale.join(', ')} (기대값 ${VERSION})`,
+    '이전 빌드 잔재입니다. dist 를 지우고 재빌드하세요'
+  )
+  process.exit(1)
+}
+// 참고: 태그에 없는 버전 문자열(라이브러리·UA 등)은 검사 대상이 아니므로 통과시킨다.
+ok(`dist/_worker.js → v${VERSION} 확인 (이전 릴리스 잔재 없음)`)
 
 /* ── 6. DOM 회귀 테스트 ──────────────────────────────────────── */
 step(6, 'DOM 회귀 테스트')
